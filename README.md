@@ -5,7 +5,7 @@ A modern productivity web application that unifies tasks, habits, meals, events,
 ---
 
 ## Table of contents
-
+- [Screenshots](#screenshots)
 - [Features](#features)
 - [Tech stack](#tech-stack)
 - [Clone and run locally](#clone-and-run-locally)
@@ -17,6 +17,15 @@ A modern productivity web application that unifies tasks, habits, meals, events,
 - [License](#license)
 
 ---
+
+## Screenshots
+<img width="1500" height="978" alt="Screenshot 2026-02-26 at 17 49 52" src="https://github.com/user-attachments/assets/70197984-d9ad-4de1-ac52-f463662884b4" />
+<img width="1362" height="815" alt="Screenshot 2026-02-26 at 17 50 23" src="https://github.com/user-attachments/assets/e45841dc-7593-48c7-8d73-4b8fd9412cd9" />
+<img width="1339" height="714" alt="Screenshot 2026-02-26 at 17 50 57" src="https://github.com/user-attachments/assets/b022a63c-911b-49f2-9983-ebd3fb27cf4d" />
+<img width="1337" height="785" alt="Screenshot 2026-02-26 at 17 51 18" src="https://github.com/user-attachments/assets/780cf7b6-94b3-4242-9f2b-52dad31dedfc" />
+<img width="1327" height="959" alt="Screenshot 2026-02-26 at 17 51 43" src="https://github.com/user-attachments/assets/db9cc08b-c20c-468f-9064-9870b91e00cd" />
+
+
 
 ## Features
 
