@@ -1,0 +1,13 @@
+# Productive Calendar – Python dependencies (optional)
+# Use for: Jupyter notebook in "calendar lofic/calander.ipynb" (Google Calendar API integration)
+# Install: pip install -r requirements.txt
+# Main web app uses Node.js; see package.json for npm install.
+
+# Google Calendar API (used by calendar notebook)
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+
+# Jupyter (to run the notebook)
+jupyter>=1.0.0
+notebook>=7.0.0
