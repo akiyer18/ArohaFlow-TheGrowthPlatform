@@ -1,4 +1,4 @@
-# Productive Calendar
+# ArohaFlow - The Growth Platform
 
 A modern productivity web application that unifies tasks, habits, meals, events, finances, journal, and knowledge expansion in one place. Built with React, Vite, Tailwind CSS, and optional Supabase or local storage.
 
