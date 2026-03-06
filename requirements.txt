@@ -1,4 +1,4 @@
-# Productive Calendar – Python dependencies (optional)
+# Aroha Flow – Python dependencies (optional)
 # Use for: Jupyter notebook in "calendar lofic/calander.ipynb" (Google Calendar API integration)
 # Install: pip install -r requirements.txt
 # Main web app uses Node.js; see package.json for npm install.

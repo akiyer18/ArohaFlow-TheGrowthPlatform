@@ -9,8 +9,18 @@ export default function ViewKnowledgeModal({ open, onClose, entry, onEdit, onDel
   const rating = entry.impact_rating != null && entry.impact_rating >= 1 && entry.impact_rating <= 5 ? entry.impact_rating : null;
   const tags = Array.isArray(entry.tags) ? entry.tags : [];
 
+  const contentLines =
+    typeof entry.content === 'string'
+      ? entry.content
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+      : [];
+
+  const looksNumbered = contentLines.filter((line) => /^\d+[\).\-\)]\s+/.test(line)).length >= 2;
+
   return (
-    <Modal open={open} onClose={onClose} title={entry.title || 'Untitled'} maxWidth="max-w-lg">
+    <Modal open={open} onClose={onClose} title={entry.title || 'Untitled'} maxWidth="max-w-4xl">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
         {rating != null && (
           <div className="flex items-center gap-1.5 text-amber-400">
@@ -39,8 +49,28 @@ export default function ViewKnowledgeModal({ open, onClose, entry, onEdit, onDel
           {entry.date}
         </div>
         {entry.content && (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="whitespace-pre-wrap text-sm text-app-text-primary">{entry.content}</p>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 max-h-[70vh] overflow-y-auto">
+            {looksNumbered && contentLines.length > 0 ? (
+              <ol className="list-decimal space-y-3 pl-5 text-[15px] leading-relaxed text-app-text-primary">
+                {contentLines.map((line, idx) => (
+                  <li key={idx} className="font-medium">
+                    {line.replace(/^\d+[\).\-\)]\s+/, '')}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="space-y-3 text-[15px] leading-relaxed text-app-text-primary">
+                {contentLines.length > 0 ? (
+                  contentLines.map((line, idx) => (
+                    <p key={idx} className="font-medium">
+                      {line}
+                    </p>
+                  ))
+                ) : (
+                  <p className="whitespace-pre-wrap font-medium">{entry.content}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
         {tags.length > 0 && (

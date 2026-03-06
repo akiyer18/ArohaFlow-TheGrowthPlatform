@@ -230,13 +230,15 @@ export const getTasksDueToday = async () => {
 // Get overdue tasks
 export const getOverdueTasks = async () => {
   try {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
       .eq('status', 'Pending')
-      .lt('due_date', now)
+      // Overdue = strictly before today. Tasks due today are NOT treated as overdue.
+      .lt('due_date', startOfToday)
       .order('due_date', { ascending: true });
 
     if (error) {

@@ -76,7 +76,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen">
-      <AppHeader title="Productive Calendar" subtitle="Flow-State Operating System" onLogout={handleLogout} />
+      <AppHeader title="Aroha Flow: The Growth Platform" subtitle="Flow-State Operating System" onLogout={handleLogout} />
       <PageContainer>
         <section className="flow-section">
           <FlowOverview />

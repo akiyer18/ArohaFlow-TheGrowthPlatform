@@ -48,6 +48,9 @@ export * from './journalService';
 // Knowledge Expansion (structured learning journal)
 export * from './knowledgeService';
 
+// Bank Statement Analyzer (parsed transactions only)
+export * from './bankStatementService';
+
 // Export active data layer and selected source
 export { supabase, activeDataSource, isLocalMode } from '../config/supabase';
 export { dataClient, dataService, DATA_SOURCE } from './data/DataService';

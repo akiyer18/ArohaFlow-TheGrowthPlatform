@@ -25,7 +25,7 @@ export function getInitSql() {
 }
 
 export function logInitInstructions() {
-  console.log('[DB Init] Productive Calendar database setup');
+  console.log('[DB Init] Aroha Flow database setup');
   console.log('[DB Init] 1. Local dev (VITE_DATA_SOURCE=local): tables live in localStorage; DEV_USER_ID is used. No SQL to run.');
   console.log('[DB Init] 2. Supabase: run the SQL file once in your project SQL Editor:');
   console.log('[DB Init]   Path:', sqlPath);

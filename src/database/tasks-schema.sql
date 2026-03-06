@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     task_name VARCHAR(255) NOT NULL,
     notes TEXT,
-    due_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    due_date TIMESTAMP WITH TIME ZONE,
     priority VARCHAR(20) NOT NULL CHECK (priority IN ('Critical', 'High', 'Medium', 'Low')),
     category VARCHAR(50) NOT NULL CHECK (category IN ('Bills', 'Communication', 'Work', 'Health', 'Other')),
     status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Completed', 'Cancelled')),
@@ -167,7 +167,7 @@ SELECT
 FROM tasks t
 LEFT JOIN task_categories tc ON tc.name = t.category AND tc.user_id = t.user_id
 WHERE t.status = 'Pending' 
-AND t.due_date < NOW();
+AND DATE(t.due_date) < CURRENT_DATE;
 
 -- Grant permissions on views
 GRANT SELECT ON active_tasks TO authenticated;

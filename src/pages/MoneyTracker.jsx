@@ -19,12 +19,14 @@ import {
 } from '../services';
 import AppHeader from '../components/layout/AppHeader';
 import { Badge, Button, Card, Input, Modal, PageContainer, SectionHeader, Select } from '../components/ui';
+import StatementAnalyzerTab from '../components/bank-statement/StatementAnalyzerTab';
 
 const tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'accounts', label: 'Accounts' },
   { id: 'budget', label: 'Budget' },
   { id: 'planning', label: 'Planning' },
+  { id: 'statement', label: 'Statement Analyzer' },
 ];
 
 const expenseCategories = [
@@ -392,6 +394,10 @@ const MoneyTracker = () => {
               </div>
             </Card>
           </div>
+        )}
+
+        {activeTab === 'statement' && (
+          <StatementAnalyzerTab />
         )}
       </PageContainer>
 

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Check, Plus, Trash2, Pencil } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { completeTask, createTask, deleteTask, getCompletedTasks, getPendingTasks } from '../services';
+import { completeTask, createTask, deleteTask, getCompletedTasks, getPendingTasks, updateTask } from '../services';
 import AppHeader from '../components/layout/AppHeader';
 import { Badge, Button, Card, Input, PageContainer, SectionHeader, Select, Textarea } from '../components/ui';
 
@@ -17,6 +17,7 @@ const TaskManager = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
   useEffect(() => {
     if (user) loadData();
@@ -40,19 +41,38 @@ const TaskManager = () => {
     const form = event.currentTarget;
     if (!form) return;
     const formData = new FormData(form);
+    const rawDueDate = formData.get('dueDate');
+    const payload = {
+      taskName: formData.get('taskName'),
+      dueDate: rawDueDate ? rawDueDate : null,
+      priority: formData.get('priority'),
+      notes: formData.get('notes'),
+      category: formData.get('category'),
+    };
     try {
-      await createTask({
-        taskName: formData.get('taskName'),
-        dueDate: formData.get('dueDate'),
-        priority: formData.get('priority'),
-        notes: formData.get('notes'),
-        category: formData.get('category'),
-      });
+      if (editingTask) {
+        await updateTask(editingTask.id, payload);
+      } else {
+        await createTask(payload);
+      }
       if (typeof form.reset === 'function') form.reset();
     } finally {
+      setEditingTask(null);
       setShowForm(false);
       loadData();
     }
+  };
+
+  const startEditingTask = (task) => {
+    setEditingTask(task);
+    setShowForm(true);
+  };
+
+  const toDateInputValue = (value) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
   };
 
   const grouped = useMemo(() => {
@@ -64,6 +84,10 @@ const TaskManager = () => {
     endOfWeek.setDate(now.getDate() + 7);
 
     pendingTasks.forEach((task) => {
+      if (!task.due_date) {
+        upcoming.push(task);
+        return;
+      }
       const due = new Date(task.due_date);
       if (due <= now) today.push(task);
       else if (due <= endOfWeek) week.push(task);
@@ -83,9 +107,14 @@ const TaskManager = () => {
           title="Task Workspace"
           subtitle="Manage priorities and keep execution clean."
           actions={
-            <Button onClick={() => setShowForm((s) => !s)}>
+            <Button
+              onClick={() => {
+                setShowForm((s) => !s);
+                if (showForm) setEditingTask(null);
+              }}
+            >
               <Plus className="h-4 w-4" />
-              {showForm ? 'Close form' : 'Add task'}
+              {showForm ? 'Close form' : editingTask ? 'Edit task' : 'Add task'}
             </Button>
           }
         />
@@ -95,20 +124,38 @@ const TaskManager = () => {
         {showForm ? (
           <Card className="mb-6">
             <form className="grid gap-3 md:grid-cols-2" onSubmit={onAddTask}>
-              <Input name="taskName" placeholder="Task title" required className="md:col-span-2" />
-              <Input type="datetime-local" name="dueDate" required />
-              <Select name="priority" required>
+              <Input
+                name="taskName"
+                placeholder="Task title"
+                required
+                className="md:col-span-2"
+                defaultValue={editingTask?.task_name || ''}
+              />
+              <Input
+                type="date"
+                name="dueDate"
+                defaultValue={toDateInputValue(editingTask?.due_date)}
+              />
+              <Select name="priority" defaultValue={editingTask?.priority || 'Medium'} required>
                 {priorities.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </Select>
-              <Select name="category" required>
+              <Select name="category" defaultValue={editingTask?.category || 'Other'} required>
                 {categories.map((item) => (
                   <option key={item} value={item}>{item}</option>
                 ))}
               </Select>
-              <Textarea name="notes" rows={3} placeholder="Notes" className="md:col-span-2" />
-              <Button type="submit" className="md:col-span-2">Create Task</Button>
+              <Textarea
+                name="notes"
+                rows={3}
+                placeholder="Notes"
+                className="md:col-span-2"
+                defaultValue={editingTask?.notes || ''}
+              />
+              <Button type="submit" className="md:col-span-2">
+                {editingTask ? 'Save Changes' : 'Create Task'}
+              </Button>
             </form>
           </Card>
         ) : null}
@@ -118,18 +165,21 @@ const TaskManager = () => {
           tasks={grouped.today}
           onComplete={async (id) => { await completeTask(id); loadData(); }}
           onDelete={async (id) => { await deleteTask(id); loadData(); }}
+          onEdit={startEditingTask}
         />
         <TaskSection
           title="This Week"
           tasks={grouped.week}
           onComplete={async (id) => { await completeTask(id); loadData(); }}
           onDelete={async (id) => { await deleteTask(id); loadData(); }}
+          onEdit={startEditingTask}
         />
         <TaskSection
           title="Upcoming"
           tasks={grouped.upcoming}
           onComplete={async (id) => { await completeTask(id); loadData(); }}
           onDelete={async (id) => { await deleteTask(id); loadData(); }}
+          onEdit={startEditingTask}
         />
 
         <Card className="mt-6">
@@ -155,7 +205,7 @@ const TaskManager = () => {
   );
 };
 
-const TaskSection = ({ title, tasks, onComplete, onDelete }) => {
+const TaskSection = ({ title, tasks, onComplete, onDelete, onEdit }) => {
   if (!tasks.length) return null;
 
   return (
@@ -167,10 +217,19 @@ const TaskSection = ({ title, tasks, onComplete, onDelete }) => {
             <div>
               <p className="text-sm font-medium">{task.task_name}</p>
               <p className="text-xs app-muted">
-                {task.category} · {new Date(task.due_date).toLocaleString()}
+                {task.category}
+                {task.due_date && (
+                  <>
+                    {' '}·{' '}
+                    {new Date(task.due_date).toLocaleDateString()}
+                  </>
+                )}
               </p>
             </div>
             <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => onEdit(task)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
               <Button variant="secondary" size="sm" onClick={() => onComplete(task.id)}>
                 <Check className="h-4 w-4" />
               </Button>

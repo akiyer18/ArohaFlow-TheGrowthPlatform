@@ -4,7 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import AppHeader from '../components/layout/AppHeader';
 import { PageContainer } from '../components/ui';
 import {
-  getTodayJournalEntry,
+  getJournalEntryByDate,
+  getJournalDatesWithEntries,
   upsertJournalEntry,
   getPromptForDate,
 } from '../services';
@@ -42,6 +43,13 @@ function ScaleSlider({ label, low, high, value, onChange }) {
   );
 }
 
+function getRangeForHistory() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 90);
+  return { startDate: toDateKey(start), endDate: toDateKey(end) };
+}
+
 export default function Journal() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -49,8 +57,10 @@ export default function Journal() {
   const openedAtRef = useRef(Date.now());
   const saveTimeoutRef = useRef(null);
 
+  const [selectedDate, setSelectedDate] = useState(today);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [historyDates, setHistoryDates] = useState([]);
   const [entry, setEntry] = useState({
     mood: null,
     energy: null,
@@ -64,12 +74,12 @@ export default function Journal() {
   const [prompt, setPrompt] = useState({ key: '', text: '' });
   const [reflectionExpanded, setReflectionExpanded] = useState(false);
 
-  const load = useCallback(async () => {
+  const loadEntryForDate = useCallback(async (dateStr) => {
     setLoading(true);
     try {
       const [existing, promptForDay] = await Promise.all([
-        getTodayJournalEntry(),
-        Promise.resolve(getPromptForDate(today)),
+        getJournalEntryByDate(dateStr),
+        Promise.resolve(getPromptForDate(dateStr)),
       ]);
       setPrompt(promptForDay);
       if (existing) {
@@ -83,18 +93,35 @@ export default function Journal() {
           tomorrowIntention: existing.tomorrow_intention ?? '',
           confidenceTomorrow: existing.confidence_tomorrow ?? null,
         });
-        if ((existing.reflection_text || '').length > 0) setReflectionExpanded(true);
+        setReflectionExpanded((existing.reflection_text || '').length > 0);
+      } else {
+        setEntry({
+          mood: null,
+          energy: null,
+          focus: null,
+          stress: null,
+          reflectionText: '',
+          smallWin: '',
+          tomorrowIntention: '',
+          confidenceTomorrow: null,
+        });
+        setReflectionExpanded(false);
       }
     } catch (err) {
       console.error('Journal load', err);
     } finally {
       setLoading(false);
     }
-  }, [today]);
+  }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    loadEntryForDate(selectedDate);
+  }, [selectedDate, loadEntryForDate]);
+
+  useEffect(() => {
+    const { startDate, endDate } = getRangeForHistory();
+    getJournalDatesWithEntries(startDate, endDate).then(setHistoryDates);
+  }, [selectedDate, saving]);
 
   const save = useCallback(
     async (payload) => {
@@ -104,19 +131,21 @@ export default function Journal() {
         const sessionLength = Math.round((Date.now() - openedAtRef.current) / 1000);
         await upsertJournalEntry(
           {
-            date: today,
+            date: selectedDate,
             prompt_key: prompt.key,
             ...payload,
           },
           sessionLength
         );
+        const { startDate, endDate } = getRangeForHistory();
+        getJournalDatesWithEntries(startDate, endDate).then(setHistoryDates);
       } catch (err) {
         console.error('Journal save', err);
       } finally {
         setSaving(false);
       }
     },
-    [today, prompt.key, saving]
+    [selectedDate, prompt.key, saving]
   );
 
   const scheduleSave = useCallback(
@@ -173,10 +202,59 @@ export default function Journal() {
           <h1 className="text-xl font-semibold text-app-text-primary tracking-tight">
             Reflect for a moment.
           </h1>
-          {hint && (
+          {hint && selectedDate === today && (
             <p className="mt-1 text-sm text-app-text-muted">{hint}</p>
           )}
         </header>
+
+        {/* Date selector + Save */}
+        <section className="flow-section rounded-2xl border border-white/5 bg-white/[0.06] backdrop-blur-md p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-app-text-muted">Date</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-app-text-primary"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => save(entry)}
+              disabled={saving}
+              className="rounded-lg border border-violet-500/40 bg-violet-500/20 px-4 py-2 text-sm font-medium text-violet-200 hover:bg-violet-500/30 disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save log'}
+            </button>
+          </div>
+        </section>
+
+        {/* Past entries */}
+        <section className="flow-section rounded-2xl border border-white/5 bg-white/[0.06] backdrop-blur-md p-4">
+          <h2 className="text-sm font-medium text-app-text-muted mb-2">Past entries</h2>
+          <p className="text-xs text-app-text-muted mb-2">Click a date to view or edit that day’s log.</p>
+          {historyDates.length === 0 ? (
+            <p className="text-xs text-app-text-muted">No saved logs in the last 90 days.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {historyDates.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setSelectedDate(d)}
+                  className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                    selectedDate === d
+                      ? 'bg-violet-500/30 text-violet-200 border border-violet-500/40'
+                      : 'bg-white/5 text-app-text-muted hover:bg-white/10 border border-white/10'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* 1. Daily state */}
         <section className="flow-section rounded-2xl border border-white/5 bg-white/[0.06] backdrop-blur-md p-6">
@@ -213,7 +291,7 @@ export default function Journal() {
           </div>
         </section>
 
-        {/* 2. Today in one moment */}
+        {/* 2. Reflection */}
         <section className="flow-section rounded-2xl border border-white/5 bg-white/[0.06] backdrop-blur-md p-6">
           <h2 className="text-sm font-medium text-app-text-muted mb-2">{prompt.text}</h2>
           {reflectionExpanded ? (

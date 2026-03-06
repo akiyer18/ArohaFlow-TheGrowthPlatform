@@ -17,10 +17,14 @@
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
     "openai": "^6.25.0",
+    "papaparse": "^5.5.3",
+    "pdfjs-dist": "^5.4.624",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1",
-    "uuid": "^11.1.0"
+    "recharts": "^3.7.0",
+    "uuid": "^11.1.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
 import { cn } from '../ui/cn';
 
-const AppHeader = ({ title = 'Productive Calendar', subtitle, onLogout, backTo }) => {
+const AppHeader = ({ title = 'Aroha Flow', subtitle, onLogout, backTo }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -18,7 +18,7 @@ const AppHeader = ({ title = 'Productive Calendar', subtitle, onLogout, backTo }
             </Button>
           ) : null}
           <div className="h-8 w-8 overflow-hidden rounded-ui border border-app-border bg-app-bg-secondary p-1">
-            <img src="/logo.png" alt="Productive Calendar logo" className="h-full w-full object-contain" />
+            <img src="/logo.png" alt="Aroha Flow logo" className="h-full w-full object-contain" />
           </div>
           <div>
             <p className="text-sm font-semibold text-app-text-primary">{title}</p>

@@ -124,9 +124,9 @@ export default function DayDetailsPanel({
                 <div className="flex items-center gap-1">
                   <TrendingUp className="h-4 w-4 text-app-text-muted" />
                   <span className="text-sm font-semibold text-app-text-primary">{momentum.momentum_score}/1000</span>
-                  {momentum.delta != null && momentum.delta !== 0 && (
-                    <span className={momentum.delta > 0 ? 'text-emerald-400' : 'text-amber-400'}>
-                      {momentum.delta > 0 ? '↑' : '↓'} {Math.abs(momentum.delta)}
+                  {momentum.delta != null && momentum.delta > 0 && (
+                    <span className="text-emerald-400">
+                      ↑ {momentum.delta}
                     </span>
                   )}
                 </div>

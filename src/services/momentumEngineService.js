@@ -24,6 +24,17 @@ async function fetchDayTasks(dateStr) {
   return data || [];
 }
 
+async function fetchTasksCompletedOn(dateStr) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('id,completed_on,due_date,status')
+    .eq('status', 'Completed')
+    .gte('completed_on', startOfDayIso(dateStr))
+    .lte('completed_on', endOfDayIso(dateStr));
+  if (error) throw error;
+  return data || [];
+}
+
 async function fetchOverdueTasksAsOf(dateStr) {
   const { data, error } = await supabase
     .from('tasks')
@@ -70,39 +81,44 @@ async function fetchDayFlowSessions(dateStr) {
 }
 
 async function hasReflectionForDate(dateStr) {
-  const { data: r } = await supabase
-    .from('daily_reflection')
-    .select('id')
-    .eq('date', dateStr)
-    .limit(1)
-    .maybeSingle();
-  if (r) return true;
-  const { data: m } = await supabase
-    .from('mood_logs')
-    .select('id')
-    .eq('date', dateStr)
-    .limit(1)
-    .maybeSingle();
-  return !!m;
+  const [dailyRefl, moodLog, journalEntry] = await Promise.all([
+    supabase.from('daily_reflection').select('id').eq('date', dateStr).limit(1).maybeSingle(),
+    supabase.from('mood_logs').select('id').eq('date', dateStr).limit(1).maybeSingle(),
+    supabase.from('journal_entries').select('id').eq('date', dateStr).limit(1).maybeSingle(),
+  ]);
+  return !!(dailyRefl.data || moodLog.data || journalEntry.data);
 }
 
-// --- Daily Effort (0-100, no free points) ---
+// --- Daily Effort (base effort + scalable flow bonus) ---
 
-/** Deep work score: 90+ min -> 20, 60+ -> 15, 30+ -> 8, else 0 */
-function deepWorkScore(minutes) {
-  if (minutes >= 90) return 20;
-  if (minutes >= 60) return 15;
-  if (minutes >= 30) return 8;
-  return 0;
+function computeFlowBonus(totalMinutes) {
+  if (!totalMinutes || totalMinutes < 60) return 0;
+  const base = 10;
+  const extraBlocks = Math.floor((totalMinutes - 60) / 30);
+  const bonus = base + extraBlocks * 5;
+  return Math.min(40, bonus);
+}
+
+function computeBaseEffort(habitPct, taskPct, mealScore, reflectionSubmitted) {
+  return (
+    (habitPct || 0) * 0.35 +
+    (taskPct || 0) * 0.3 +
+    (mealScore || 0) +
+    (reflectionSubmitted ? 5 : 0)
+  );
 }
 
 /**
- * Effort = (habit_pct * 0.35) + (task_pct * 0.30) + deep_work_score + meal_score + (reflection ? 5 : 0).
- * If 0 tasks today -> task contribution = 0. If 0 required habits -> habit contribution = 0.
- * Meal: planned manually -> 10 (we don't track auto-fill yet, so any planned = 10).
+ * Effort:
+ * - baseEffort = (habit_pct * 0.35) + (task_pct * 0.30) + meal_score + (reflection ? 5 : 0)
+ * - flowBonus from flow_sessions: scalable 10–40 based on minutes, 0 if < 60 min
+ * - effortScore = round(baseEffort + flowBonus), clamped only at 0 (no upper cap)
+ * Tasks counted for effort include any tasks completed today, even if overdue or future-dated.
  */
 export async function getOrCreateDailyEffort(dateStrInput) {
   const dateStr = toDateKey(dateStrInput || new Date());
+  const todayKey = toDateKey(new Date());
+
   try {
     const { data: existing, error: existingError } = await supabase
       .from('daily_effort_scores')
@@ -111,19 +127,21 @@ export async function getOrCreateDailyEffort(dateStrInput) {
       .limit(1)
       .maybeSingle();
     if (existingError) throw existingError;
-    if (existing) return existing;
+    // For past dates, return cached row. For today, always recompute so meals/tasks/completions are reflected.
+    if (existing && dateStr !== todayKey) return existing;
   } catch (err) {
     logDbError('getOrCreateDailyEffort.select', err);
   }
 
   try {
     const userId = await getCurrentUserId();
-    const [tasks, { habits, logs }, meals, sessions, reflectionSubmitted] = await Promise.all([
+    const [tasksDueToday, { habits, logs }, meals, sessions, reflectionSubmitted, tasksCompletedToday] = await Promise.all([
       fetchDayTasks(dateStr),
       fetchDayHabitsAndLogs(dateStr),
       fetchDayMeals(dateStr),
       fetchDayFlowSessions(dateStr),
       hasReflectionForDate(dateStr),
+      fetchTasksCompletedOn(dateStr),
     ]);
 
     const logsByHabit = {};
@@ -144,20 +162,29 @@ export async function getOrCreateDailyEffort(dateStrInput) {
     });
 
     const habitPct = requiredCount === 0 ? 0 : Math.round((completedRequired / requiredCount) * 100);
-    const totalTasks = tasks.length;
-    const completedTasks = tasks.filter((t) => t.status === 'Completed').length;
-    const taskPct = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+    const dueTodayIds = new Set((tasksDueToday || []).map((t) => t.id));
+    const completedToday = (tasksCompletedToday || []).filter((t) => t.status === 'Completed');
+    const denominatorTasks = [
+      ...(tasksDueToday || []),
+      ...completedToday.filter((t) => !dueTodayIds.has(t.id)),
+    ];
+    const completedTaskIds = new Set(
+      [
+        ...(tasksDueToday || []).filter((t) => t.status === 'Completed'),
+        ...completedToday,
+      ].map((t) => t.id),
+    );
+    const totalTasks = denominatorTasks.length;
+    const completedTasksCount = completedTaskIds.size;
+    const taskPct = totalTasks === 0 ? 0 : Math.round((completedTasksCount / totalTasks) * 100);
 
     const deepWorkMinutes = (sessions || []).reduce((s, x) => s + (x.duration_minutes || 0), 0);
     const mealScore = (meals || []).length > 0 ? 10 : 0;
 
-    const effort =
-      habitPct * 0.35 +
-      taskPct * 0.3 +
-      deepWorkScore(deepWorkMinutes) +
-      mealScore +
-      (reflectionSubmitted ? 5 : 0);
-    const effortScore = Math.max(0, Math.min(100, Math.round(effort)));
+    const flowBonus = computeFlowBonus(deepWorkMinutes);
+    const baseEffort = computeBaseEffort(habitPct, taskPct, mealScore, reflectionSubmitted);
+    const effortScore = Math.max(0, Math.round(baseEffort + flowBonus));
 
     const payload = {
       user_id: userId,
@@ -186,9 +213,9 @@ export async function getOrCreateDailyEffort(dateStrInput) {
   }
 }
 
-// --- Momentum (0-1000) ---
+// --- Momentum (0-1000, starts at 0 and only adds up; never stores a decline) ---
 
-const INITIAL_MOMENTUM = 500;
+const INITIAL_MOMENTUM = 0;
 const CONSISTENCY_CAP = 50;
 const STREAK_3_BONUS = 5;
 const STREAK_7_BONUS = 15;
@@ -201,13 +228,19 @@ const TWO_BAD_DAYS_EXTRA = 30;
 const INACTIVE_DAY_DECAY = 5;
 const INACTIVE_ACCELERATION_AFTER = 3;
 
-/** Good day = effort >= 50. Bad day = effort 0 or (effort < 30). */
+/** Good day = effort >= 50 (legacy, based on stored effort_score). */
 function isGoodDay(effortScore) {
   return effortScore != null && effortScore >= 50;
 }
 
+// Legacy bad-day definition, used for historical days where we only have effort_score.
 function isBadDay(effortScore) {
   return effortScore == null || effortScore === 0 || effortScore < 30;
+}
+
+// New bad-day definition for today: baseEffort < 30 and no flow bonus.
+function isBadDayToday(baseEffort, flowBonus) {
+  return (baseEffort || 0) < 30 && (flowBonus || 0) === 0;
 }
 
 /** Consecutive good days ending the day before dateStr (streak from yesterday backwards). */
@@ -231,8 +264,8 @@ async function getConsistencyStreak(userId, dateStr) {
 }
 
 /** Consecutive bad days ending at dateStr (today counts as one if bad). */
-async function getConsecutiveBadDays(userId, dateStr, todayEffort) {
-  if (!isBadDay(todayEffort)) return 0;
+async function getConsecutiveBadDays(userId, dateStr, todayContext) {
+  if (!todayContext || !isBadDayToday(todayContext.baseEffort, todayContext.flowBonus)) return 0;
   let count = 1;
   const day = new Date(dateStr + 'T12:00:00');
   for (let i = 1; i <= 5; i++) {
@@ -251,20 +284,24 @@ async function getConsecutiveBadDays(userId, dateStr, todayEffort) {
   return count;
 }
 
-/** Inactive days: no effort record. Count consecutive inactive up to dateStr. */
+/** Inactive days: no activity record. Count consecutive inactive up to dateStr. */
 async function getInactiveDaysBefore(userId, dateStr) {
   const day = new Date(dateStr + 'T12:00:00');
   let count = 0;
   for (let i = 0; i < 10; i++) {
     const key = toDateKey(day);
-    const { data } = await supabase
-      .from('daily_effort_scores')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('date', key)
-      .limit(1)
-      .maybeSingle();
-    if (data) break;
+    const [sessions, { logs }, tasksCompleted, reflection] = await Promise.all([
+      fetchDayFlowSessions(key),
+      fetchDayHabitsAndLogs(key),
+      fetchTasksCompletedOn(key),
+      hasReflectionForDate(key),
+    ]);
+    const hasSessions = (sessions || []).length > 0;
+    const hasHabitLogs = (logs || []).length > 0;
+    const hasCompletedTasks = (tasksCompleted || []).length > 0;
+    const hasReflection = !!reflection;
+    const isActive = hasSessions || hasHabitLogs || hasCompletedTasks || hasReflection;
+    if (isActive) break;
     count += 1;
     day.setDate(day.getDate() - 1);
   }
@@ -290,6 +327,14 @@ export async function getOrCreateMomentum(dateStrInput) {
     const userId = await getCurrentUserId();
     const effortRow = await getOrCreateDailyEffort(dateStr);
     const effortScore = effortRow?.effort_score ?? 0;
+    const habitPct = effortRow?.habit_pct ?? 0;
+    const taskPct = effortRow?.task_pct ?? 0;
+    const deepWorkMinutes = effortRow?.deep_work_minutes ?? 0;
+    const mealScore = effortRow?.meal_score ?? 0;
+    const reflectionSubmitted = !!effortRow?.reflection_submitted;
+
+    const flowBonus = computeFlowBonus(deepWorkMinutes);
+    const baseEffort = computeBaseEffort(habitPct, taskPct, mealScore, reflectionSubmitted);
 
     let prevMomentum = INITIAL_MOMENTUM;
     const { data: prevRow } = await supabase
@@ -302,7 +347,12 @@ export async function getOrCreateMomentum(dateStrInput) {
       .maybeSingle();
     if (prevRow?.momentum_score != null) prevMomentum = prevRow.momentum_score;
 
-    const reasonBreakdown = { effort: effortScore, prev: prevMomentum };
+    const reasonBreakdown = {
+      effort: effortScore,
+      base_effort: baseEffort,
+      flow_bonus: flowBonus,
+      prev: prevMomentum,
+    };
 
     let consistencyBonus = 0;
     const streak = await getConsistencyStreak(userId, dateStr);
@@ -334,20 +384,26 @@ export async function getOrCreateMomentum(dateStrInput) {
       const target = habit.target_per_day ?? 1;
       if (count < target) missedHabits += 1;
     });
-    missPenalty += missedHabits * MISSED_HABIT_PENALTY;
-    if (missedHabits) reasonBreakdown.missed_habits = missedHabits * MISSED_HABIT_PENALTY;
+    const missedHabitPenalty = Math.min(40, missedHabits * 8);
+    missPenalty += missedHabitPenalty;
+    if (missedHabits) {
+      reasonBreakdown.missed_habits_count = missedHabits;
+      reasonBreakdown.missed_habits = missedHabitPenalty;
+      reasonBreakdown.capped_habit_penalty = missedHabitPenalty;
+    }
 
     const overdue = await fetchOverdueTasksAsOf(dateStr);
     const overdueCount = overdue.length;
     missPenalty += overdueCount * OVERDUE_TASK_PENALTY;
     if (overdueCount) reasonBreakdown.overdue_tasks = overdueCount * OVERDUE_TASK_PENALTY;
 
-    if (effortScore === 0) {
+    const isZeroEffortDay = baseEffort === 0 && flowBonus === 0;
+    if (isZeroEffortDay) {
       missPenalty += ZERO_EFFORT_PENALTY;
       reasonBreakdown.zero_effort = ZERO_EFFORT_PENALTY;
     }
 
-    const consecutiveBad = await getConsecutiveBadDays(userId, dateStr, effortScore);
+    const consecutiveBad = await getConsecutiveBadDays(userId, dateStr, { baseEffort, flowBonus });
     if (consecutiveBad >= 2) {
       missPenalty += TWO_BAD_DAYS_EXTRA;
       reasonBreakdown.two_bad_days = TWO_BAD_DAYS_EXTRA;
@@ -363,14 +419,17 @@ export async function getOrCreateMomentum(dateStrInput) {
       reasonBreakdown.inactive_decay = INACTIVE_DAY_DECAY;
     }
 
-    const delta =
-      Math.round(effortScore * 0.5) +
-      consistencyBonus -
-      missPenalty;
-    const momentumScore = Math.max(0, Math.min(1000, prevMomentum + delta));
+    const performanceDelta =
+      Math.round(Math.min(effortScore, 100) * 0.5) +
+      Math.round(Math.max(0, effortScore - 100) * 0.8);
+
+    const rawDelta = performanceDelta + consistencyBonus - missPenalty;
+    // Momentum only adds up: never store a decline (clamp to previous so stored score never goes down)
+    const momentumScore = Math.max(prevMomentum, Math.min(1000, prevMomentum + rawDelta));
     const actualDelta = momentumScore - prevMomentum;
 
     reasonBreakdown.delta = actualDelta;
+    reasonBreakdown.performance_delta = performanceDelta;
     reasonBreakdown.consistency_bonus = consistencyBonus;
     reasonBreakdown.miss_penalty = missPenalty;
 
@@ -445,11 +504,11 @@ export async function getEffortAndMomentumForRange(startDate, endDate) {
   }
 }
 
-/** Identity message from momentum trend (no guilt language). */
+/** Identity message from momentum trend (no guilt language). Momentum only builds; we never show "declining". */
 export function getMomentumMessage(momentum, delta, previousMomentum) {
   if (delta == null) return 'Your momentum will build as you show up.';
   if (delta > 0) return 'Momentum building.';
-  if (delta < 0) return 'Momentum declining.';
+  if (delta < 0) return 'Momentum holding steady.';
   return 'Momentum holding steady.';
 }
 

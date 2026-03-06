@@ -30,6 +30,7 @@ const USER_SCOPED_TABLES = new Set([
   'mood_logs',
   'journal_entries',
   'knowledge_entries',
+  'bank_statement_transactions',
 ]);
 
 const DEFAULT_TABLES = {
@@ -61,6 +62,7 @@ const DEFAULT_TABLES = {
   mood_logs: [],
   journal_entries: [],
   knowledge_entries: [],
+  bank_statement_transactions: [],
 };
 
 const nowIso = () => new Date().toISOString();
@@ -107,8 +109,9 @@ class LocalQuery {
   select(expression = '*', options = {}) {
     this.selectExpression = expression;
     if (options && typeof options === 'object') this.options = { ...this.options, ...options };
-    // Don't overwrite mode when chaining .insert().select().single() — we must stay in insert mode
-    if (this.mode !== 'insert' && this.mode !== 'upsert') {
+    // Keep mutation mode when chaining .update().eq().select().single() or .insert().select().single()
+    const mutationModes = ['insert', 'upsert', 'update', 'delete'];
+    if (!mutationModes.includes(this.mode)) {
       this.mode = 'select';
     }
     return this;
@@ -287,6 +290,10 @@ class LocalQuery {
           const rowVal = row[filter.field];
           if (filter.field === 'archived' && filter.value === false) {
             return rowVal === false || rowVal === undefined;
+          }
+          // id can be number (local) or string (Supabase UUID); allow loose match so update finds the row
+          if (filter.field === 'id') {
+            return rowVal == filter.value;
           }
           return rowVal === filter.value;
         });

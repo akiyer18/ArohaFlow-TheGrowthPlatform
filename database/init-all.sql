@@ -1,4 +1,4 @@
--- Productive Calendar: full schema init (idempotent)
+-- Aroha Flow: full schema init (idempotent)
 -- Run once in Supabase SQL Editor. Safe to re-run (CREATE IF NOT EXISTS, etc.).
 -- Dev user id used for local/dev RLS bypass: 00000000-0000-0000-0000-000000000001
 

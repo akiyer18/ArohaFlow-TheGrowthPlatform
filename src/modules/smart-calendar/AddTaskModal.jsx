@@ -1,18 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Input, Select } from '../../components/ui';
 
-const toLocalISO = (dateKey, timeStr) => {
-  if (!dateKey) return null;
-  const [h, m] = (timeStr && timeStr.length ? timeStr : '12:00').split(':').map(Number);
-  const d = new Date(`${dateKey}T12:00:00`);
-  d.setHours(h || 0, m || 0, 0, 0);
-  return d.toISOString();
-};
-
 export default function AddTaskModal({ open, onClose, defaultDateKey, onSave }) {
   const [taskName, setTaskName] = useState('');
   const [dueDate, setDueDate] = useState(defaultDateKey || '');
-  const [time, setTime] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [saving, setSaving] = useState(false);
   const isDateLocked = !!defaultDateKey;
@@ -25,10 +16,10 @@ export default function AddTaskModal({ open, onClose, defaultDateKey, onSave }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!taskName.trim() || !dueDate) return;
+    if (!taskName.trim()) return;
     setSaving(true);
     try {
-      const dueDateIso = toLocalISO(dueDate, time);
+      const dueDateIso = dueDate ? new Date(`${dueDate}T12:00:00`).toISOString() : null;
       await onSave({
         taskName: taskName.trim(),
         dueDate: dueDateIso,
@@ -36,7 +27,6 @@ export default function AddTaskModal({ open, onClose, defaultDateKey, onSave }) 
       });
       setTaskName('');
       setDueDate(defaultDateKey || '');
-      setTime('');
       setPriority('Medium');
       onClose();
     } finally {
@@ -74,19 +64,8 @@ export default function AddTaskModal({ open, onClose, defaultDateKey, onSave }) 
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            required
           />
         )}
-        <div>
-          <label className="block text-xs text-app-text-muted mb-1">
-            Time <span className="text-app-text-muted">(optional)</span>
-          </label>
-          <Input
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-        </div>
         <Select value={priority} onChange={(e) => setPriority(e.target.value)}>
           <option value="Low">Low</option>
           <option value="Medium">Medium</option>

@@ -124,18 +124,9 @@ export default function FlowOverview() {
             <p className="text-lg font-semibold text-app-text-primary">
               {momentum?.momentum_score ?? 0}
               <span className="text-sm font-normal text-app-text-muted">/1000</span>
-              {momentum?.delta != null && (
-                <span
-                  className={`ml-2 text-sm ${
-                    momentum.delta > 0
-                      ? 'text-emerald-400'
-                      : momentum.delta < 0
-                        ? 'text-amber-400'
-                        : 'text-app-text-muted'
-                  }`}
-                >
-                  {momentum.delta > 0 ? '↑' : momentum.delta < 0 ? '↓' : ''}
-                  {momentum.delta !== 0 ? Math.abs(momentum.delta) : ''}
+              {momentum?.delta != null && momentum.delta > 0 && (
+                <span className="ml-2 text-sm text-emerald-400">
+                  ↑{momentum.delta}
                 </span>
               )}
             </p>

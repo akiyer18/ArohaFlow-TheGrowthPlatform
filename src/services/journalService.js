@@ -55,11 +55,10 @@ export async function getJournalStreak(dateStr) {
   }
 }
 
-/** Get today's entry (or null). */
-export async function getTodayJournalEntry() {
+/** Get journal entry for a specific date (or null). */
+export async function getJournalEntryByDate(dateStr) {
   try {
     const userId = await getCurrentUserId();
-    const dateStr = toDateKey(new Date());
     const { data, error } = await supabase
       .from('journal_entries')
       .select('*')
@@ -70,8 +69,33 @@ export async function getTodayJournalEntry() {
     if (error) throw error;
     return data;
   } catch (err) {
-    logDbError('getTodayJournalEntry', err);
+    logDbError('getJournalEntryByDate', err);
     throw err;
+  }
+}
+
+/** Get today's entry (or null). */
+export async function getTodayJournalEntry() {
+  const dateStr = toDateKey(new Date());
+  return getJournalEntryByDate(dateStr);
+}
+
+/** Get list of dates that have journal entries in range (for log history). */
+export async function getJournalDatesWithEntries(startDate, endDate) {
+  try {
+    const userId = await getCurrentUserId();
+    const { data, error } = await supabase
+      .from('journal_entries')
+      .select('date')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
+    if (error) throw error;
+    return (data || []).map((r) => r.date);
+  } catch (err) {
+    logDbError('getJournalDatesWithEntries', err);
+    return [];
   }
 }
 

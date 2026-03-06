@@ -58,7 +58,7 @@ const Register = () => {
       <div className="mx-auto flex min-h-[80vh] w-full max-w-md items-center">
         <div className="w-full rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl p-8 shadow-2xl">
           <div className="mb-8 text-center">
-            <img src="/logo.png" alt="Productive Calendar" className="mx-auto h-12 w-auto" />
+            <img src="/logo.png" alt="Aroha Flow" className="mx-auto h-12 w-auto" />
             <h1 className="mt-6 text-[1.75rem]">Create account</h1>
             <p className="mt-2 app-muted">
               Have an account?{' '}

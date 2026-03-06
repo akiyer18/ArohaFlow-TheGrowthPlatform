@@ -1,6 +1,6 @@
-# ArohaFlow - The Growth Platform
+# Aroha Flow: The Growth Platform
 
-A modern productivity web application that unifies tasks, habits, meals, events, finances, journal, and knowledge expansion in one place. Built with React, Vite, Tailwind CSS, and optional Supabase or local storage.
+A modern growth and productivity platform that unifies tasks, habits, meals, events, finances, journal, and knowledge expansion in one place. Built with React, Vite, Tailwind CSS, and optional Supabase or local storage.
 
 ---
 
@@ -202,7 +202,7 @@ Productive_Calander/
 - You are welcome to **fork** this repository and use or modify it for your own projects.
 - If you distribute your fork or build something public on top of it, we ask that you:
   - **Credit the original project** (e.g. in your README or “About” section):
-    - *“Based on [Productive Calendar](https://github.com/YOUR_ORG/Productive_Calander).”*
+    - *“Based on [Aroha Flow](https://github.com/YOUR_ORG/Productive_Calander).”*
   - Keep the **license** (MIT) and any existing copyright notices in the repo.
 - This helps others trace the origin of the code and supports open source.
 
