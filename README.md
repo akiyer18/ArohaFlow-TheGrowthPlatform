@@ -19,11 +19,10 @@ A modern growth and productivity platform that unifies tasks, habits, meals, eve
 ---
 
 ## Screenshots
-<img width="1500" height="978" alt="Screenshot 2026-02-26 at 17 49 52" src="https://github.com/user-attachments/assets/70197984-d9ad-4de1-ac52-f463662884b4" />
-<img width="1362" height="815" alt="Screenshot 2026-02-26 at 17 50 23" src="https://github.com/user-attachments/assets/e45841dc-7593-48c7-8d73-4b8fd9412cd9" />
-<img width="1339" height="714" alt="Screenshot 2026-02-26 at 17 50 57" src="https://github.com/user-attachments/assets/b022a63c-911b-49f2-9983-ebd3fb27cf4d" />
-<img width="1337" height="785" alt="Screenshot 2026-02-26 at 17 51 18" src="https://github.com/user-attachments/assets/780cf7b6-94b3-4242-9f2b-52dad31dedfc" />
-<img width="1327" height="959" alt="Screenshot 2026-02-26 at 17 51 43" src="https://github.com/user-attachments/assets/db9cc08b-c20c-468f-9064-9870b91e00cd" />
+<img width="1652" height="987" alt="Screenshot 2026-05-03 at 10 57 47" src="https://github.com/user-attachments/assets/921ba049-2beb-4792-b44d-b15af69ab1e5" />
+<img width="1610" height="979" alt="Screenshot 2026-05-03 at 10 58 20" src="https://github.com/user-attachments/assets/e61f1b2d-ef97-429a-9fdc-70e2472df573" />
+<img width="1583" height="941" alt="Screenshot 2026-05-03 at 10 58 46" src="https://github.com/user-attachments/assets/c17c7d77-17c7-4418-8469-0883499b4894" />
+
 
 
 
