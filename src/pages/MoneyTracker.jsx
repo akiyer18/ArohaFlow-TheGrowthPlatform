@@ -10,12 +10,16 @@ import {
   createIncomeIdea,
   createIncomeTransaction,
   createPlannedExpense,
+  deleteIncomeIdea,
+  deletePlannedExpense,
   getAccounts,
   getBudgetCategories,
   getIncomeIdeas,
   getPlannedExpenses,
   getTransactions,
   getTotalBalance,
+  updateIncomeIdea,
+  updatePlannedExpense,
 } from '../services';
 import AppHeader from '../components/layout/AppHeader';
 import { Badge, Button, Card, Input, Modal, PageContainer, SectionHeader, Select } from '../components/ui';
@@ -58,6 +62,11 @@ const MoneyTracker = () => {
   const [totalBalance, setTotalBalance] = useState(0);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
+
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [editingExpenseDraft, setEditingExpenseDraft] = useState({ item: '', cost: '', date: '', category: '' });
+  const [editingIdea, setEditingIdea] = useState(null);
+  const [editingIdeaDraft, setEditingIdeaDraft] = useState({ idea: '', amount: '', date: '', confidence: '' });
 
   useEffect(() => {
     if (user) loadAllData();
@@ -154,30 +163,162 @@ const MoneyTracker = () => {
 
   const onAddPlannedExpense = async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    await createPlannedExpense({
-      item: formData.get('item'),
-      cost: formData.get('cost'),
-      date: formData.get('date'),
-      category: formData.get('category'),
-      currency: 'USD',
-    });
-    event.currentTarget.reset();
-    loadAllData();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    try {
+      setError('');
+      await createPlannedExpense({
+        item: formData.get('item'),
+        cost: formData.get('cost'),
+        date: formData.get('date') || null,
+        category: formData.get('category'),
+        currency: 'USD',
+      });
+      if (form && typeof form.reset === 'function') form.reset();
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to save possible expense.');
+    }
   };
 
   const onAddIncomeIdea = async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    await createIncomeIdea({
-      idea: formData.get('idea'),
-      amount: formData.get('amount'),
-      date: formData.get('date'),
-      confidence: formData.get('confidence'),
-      currency: 'USD',
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    try {
+      setError('');
+      await createIncomeIdea({
+        idea: formData.get('idea'),
+        amount: formData.get('amount'),
+        date: formData.get('date') || null,
+        confidence: formData.get('confidence'),
+        currency: 'USD',
+      });
+      if (form && typeof form.reset === 'function') form.reset();
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to save planned income.');
+    }
+  };
+
+  const startEditExpense = (expense) => {
+    setEditingExpense(expense);
+    setEditingExpenseDraft({
+      item: expense?.item || '',
+      cost: expense?.cost != null ? String(expense.cost) : '',
+      date: expense?.target_date || '',
+      category: expense?.category || '',
     });
-    event.currentTarget.reset();
-    loadAllData();
+  };
+
+  const startEditIdea = (idea) => {
+    setEditingIdea(idea);
+    setEditingIdeaDraft({
+      idea: idea?.idea || '',
+      amount: idea?.expected_amount != null ? String(idea.expected_amount) : '',
+      date: idea?.target_date || '',
+      confidence: idea?.confidence_level != null ? String(idea.confidence_level) : '',
+    });
+  };
+
+  const toggleExpenseCompleted = async (expense) => {
+    try {
+      setError('');
+      await updatePlannedExpense(expense.id, {
+        item: expense.item,
+        cost: expense.cost,
+        date: expense.target_date || null,
+        category: expense.category,
+        currency: expense.currency || 'USD',
+        isCompleted: !expense.is_completed,
+      });
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to update possible expense.');
+    }
+  };
+
+  const toggleIdeaCompleted = async (idea) => {
+    try {
+      setError('');
+      await updateIncomeIdea(idea.id, {
+        idea: idea.idea,
+        amount: idea.expected_amount,
+        date: idea.target_date || null,
+        confidence: idea.confidence_level ?? 0,
+        currency: idea.currency || 'USD',
+        isRecurring: idea.is_recurring || false,
+        frequency: idea.frequency || null,
+        isCompleted: !idea.is_completed,
+      });
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to update planned income.');
+    }
+  };
+
+  const handleDeleteExpense = async (expense) => {
+    if (!window.confirm('Delete this possible expense?')) return;
+    try {
+      setError('');
+      await deletePlannedExpense(expense.id);
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to delete possible expense.');
+    }
+  };
+
+  const handleDeleteIdea = async (idea) => {
+    if (!window.confirm('Delete this planned income item?')) return;
+    try {
+      setError('');
+      await deleteIncomeIdea(idea.id);
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to delete planned income.');
+    }
+  };
+
+  const handleSaveExpenseEdit = async (event) => {
+    event.preventDefault();
+    if (!editingExpense) return;
+    try {
+      setError('');
+      await updatePlannedExpense(editingExpense.id, {
+        item: editingExpenseDraft.item,
+        cost: editingExpenseDraft.cost,
+        date: editingExpenseDraft.date || null,
+        category: editingExpenseDraft.category,
+        currency: editingExpense.currency || 'USD',
+        isCompleted: !!editingExpense.is_completed,
+      });
+      setEditingExpense(null);
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to save changes.');
+    }
+  };
+
+  const handleSaveIdeaEdit = async (event) => {
+    event.preventDefault();
+    if (!editingIdea) return;
+    try {
+      setError('');
+      await updateIncomeIdea(editingIdea.id, {
+        idea: editingIdeaDraft.idea,
+        amount: editingIdeaDraft.amount,
+        date: editingIdeaDraft.date || null,
+        confidence: editingIdeaDraft.confidence,
+        currency: editingIdea.currency || 'USD',
+        isRecurring: editingIdea.is_recurring || false,
+        frequency: editingIdea.frequency || null,
+        isCompleted: !!editingIdea.is_completed,
+      });
+      setEditingIdea(null);
+      loadAllData();
+    } catch (err) {
+      setError(err.message || 'Failed to save changes.');
+    }
   };
 
   if (loading) return <div className="min-h-screen" />;
@@ -358,39 +499,103 @@ const MoneyTracker = () => {
         {activeTab === 'planning' && (
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-              <h3 className="mb-4">Planned Expenses</h3>
+              <h3 className="mb-4">Possible Expenses</h3>
               <form className="space-y-3" onSubmit={onAddPlannedExpense}>
                 <Input name="item" placeholder="Item" required />
                 <Input type="number" name="cost" placeholder="Cost" required />
-                <Input type="date" name="date" required />
+                <Input type="date" name="date" />
                 <Input name="category" placeholder="Category" required />
-                <Button type="submit" className="w-full">Add Planned Expense</Button>
+                <Button type="submit" className="w-full">Add Possible Expense</Button>
               </form>
-              <div className="mt-4 space-y-2">
-                {plannedExpenses.slice(0, 8).map((expense) => (
-                  <div key={expense.id} className="rounded-ui border border-app-border bg-app-bg-primary px-3 py-2">
-                    <p className="text-sm">{expense.item}</p>
-                    <p className="text-xs app-muted">{expense.target_date}</p>
-                  </div>
-                ))}
+              <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
+                {plannedExpenses.length === 0 ? (
+                  <p className="text-sm app-muted">No possible expenses yet.</p>
+                ) : (
+                  plannedExpenses.map((expense) => (
+                    <div key={expense.id} className="rounded-ui border border-app-border bg-app-bg-primary px-3 py-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <label className="flex items-start gap-3 min-w-0 flex-1">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 accent-app-accent"
+                            checked={!!expense.is_completed}
+                            onChange={() => toggleExpenseCompleted(expense)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-medium truncate ${expense.is_completed ? 'line-through text-app-text-muted' : ''}`}>
+                              {expense.item}
+                            </p>
+                            <p className="text-xs app-muted">
+                              {(expense.category || 'Uncategorized')}
+                              {' · '}
+                              {expense.target_date || 'No date'}
+                            </p>
+                          </div>
+                        </label>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <p className={`text-sm ${expense.is_completed ? 'text-app-text-muted line-through' : ''}`}>
+                            {formatCurrency(expense.cost, expense.currency || 'USD')}
+                          </p>
+                          <Button variant="secondary" size="sm" onClick={() => startEditExpense(expense)}>
+                            Edit
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => handleDeleteExpense(expense)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
             <Card>
-              <h3 className="mb-4">Income Ideas</h3>
+              <h3 className="mb-4">Planned Income</h3>
               <form className="space-y-3" onSubmit={onAddIncomeIdea}>
                 <Input name="idea" placeholder="Idea" required />
                 <Input type="number" name="amount" placeholder="Expected amount" required />
-                <Input type="date" name="date" required />
+                <Input type="date" name="date" />
                 <Input type="number" name="confidence" placeholder="Confidence %" required />
-                <Button type="submit" className="w-full">Add Income Idea</Button>
+                <Button type="submit" className="w-full">Add Planned Income</Button>
               </form>
-              <div className="mt-4 space-y-2">
-                {incomeIdeas.slice(0, 8).map((idea) => (
-                  <div key={idea.id} className="rounded-ui border border-app-border bg-app-bg-primary px-3 py-2">
-                    <p className="text-sm">{idea.idea}</p>
-                    <p className="text-xs app-muted">{idea.target_date}</p>
-                  </div>
-                ))}
+              <div className="mt-4 max-h-64 space-y-2 overflow-y-auto">
+                {incomeIdeas.length === 0 ? (
+                  <p className="text-sm app-muted">No planned income yet.</p>
+                ) : (
+                  incomeIdeas.map((idea) => (
+                    <div key={idea.id} className="rounded-ui border border-app-border bg-app-bg-primary px-3 py-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <label className="flex items-start gap-3 min-w-0 flex-1">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 accent-app-accent"
+                            checked={!!idea.is_completed}
+                            onChange={() => toggleIdeaCompleted(idea)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm font-medium truncate ${idea.is_completed ? 'line-through text-app-text-muted' : ''}`}>
+                              {idea.idea}
+                            </p>
+                            <p className="text-xs app-muted">
+                              Confidence {idea.confidence_level ?? 0}% · {idea.target_date || 'No date'}
+                            </p>
+                          </div>
+                        </label>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <p className={`text-sm ${idea.is_completed ? 'text-app-text-muted line-through' : ''}`}>
+                            {formatCurrency(idea.expected_amount, idea.currency || 'USD')}
+                          </p>
+                          <Button variant="secondary" size="sm" onClick={() => startEditIdea(idea)}>
+                            Edit
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => handleDeleteIdea(idea)}>
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </div>
@@ -434,6 +639,84 @@ const MoneyTracker = () => {
           </Select>
           <Input name="budget" type="number" placeholder="Monthly budget" required />
           <Button type="submit" className="w-full">Create Budget</Button>
+        </form>
+      </Modal>
+
+      <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit possible expense">
+        <form className="space-y-3" onSubmit={handleSaveExpenseEdit}>
+          <Input
+            name="item"
+            placeholder="Item"
+            value={editingExpenseDraft.item}
+            onChange={(e) => setEditingExpenseDraft((s) => ({ ...s, item: e.target.value }))}
+            required
+          />
+          <Input
+            type="number"
+            name="cost"
+            placeholder="Cost"
+            value={editingExpenseDraft.cost}
+            onChange={(e) => setEditingExpenseDraft((s) => ({ ...s, cost: e.target.value }))}
+            required
+          />
+          <Input
+            type="date"
+            name="date"
+            value={editingExpenseDraft.date}
+            onChange={(e) => setEditingExpenseDraft((s) => ({ ...s, date: e.target.value }))}
+          />
+          <Input
+            name="category"
+            placeholder="Category"
+            value={editingExpenseDraft.category}
+            onChange={(e) => setEditingExpenseDraft((s) => ({ ...s, category: e.target.value }))}
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setEditingExpense(null)}>
+              Cancel
+            </Button>
+            <Button type="submit">Save</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={!!editingIdea} onClose={() => setEditingIdea(null)} title="Edit planned income">
+        <form className="space-y-3" onSubmit={handleSaveIdeaEdit}>
+          <Input
+            name="idea"
+            placeholder="Idea"
+            value={editingIdeaDraft.idea}
+            onChange={(e) => setEditingIdeaDraft((s) => ({ ...s, idea: e.target.value }))}
+            required
+          />
+          <Input
+            type="number"
+            name="amount"
+            placeholder="Expected amount"
+            value={editingIdeaDraft.amount}
+            onChange={(e) => setEditingIdeaDraft((s) => ({ ...s, amount: e.target.value }))}
+            required
+          />
+          <Input
+            type="date"
+            name="date"
+            value={editingIdeaDraft.date}
+            onChange={(e) => setEditingIdeaDraft((s) => ({ ...s, date: e.target.value }))}
+          />
+          <Input
+            type="number"
+            name="confidence"
+            placeholder="Confidence %"
+            value={editingIdeaDraft.confidence}
+            onChange={(e) => setEditingIdeaDraft((s) => ({ ...s, confidence: e.target.value }))}
+            required
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setEditingIdea(null)}>
+              Cancel
+            </Button>
+            <Button type="submit">Save</Button>
+          </div>
         </form>
       </Modal>
     </div>

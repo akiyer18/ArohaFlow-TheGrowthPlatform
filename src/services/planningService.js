@@ -14,7 +14,16 @@ export const getPlannedExpenses = async () => {
       .order('target_date', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    const rows = data || [];
+    // Stable sort: null dates last
+    return rows.sort((a, b) => {
+      const ad = a.target_date ? String(a.target_date) : null;
+      const bd = b.target_date ? String(b.target_date) : null;
+      if (!ad && !bd) return 0;
+      if (!ad) return 1;
+      if (!bd) return -1;
+      return ad.localeCompare(bd);
+    });
   } catch (error) {
     console.error('Error in getPlannedExpenses:', error);
     throw error;
@@ -33,7 +42,7 @@ export const createPlannedExpense = async (expenseData) => {
         user_id: user.id,
         item: expenseData.item,
         cost: parseFloat(expenseData.cost),
-        target_date: expenseData.date,
+        target_date: expenseData.date ? expenseData.date : null,
         category: expenseData.category,
         currency: expenseData.currency || 'USD'
       }])
@@ -55,7 +64,7 @@ export const updatePlannedExpense = async (expenseId, updates) => {
       .update({
         item: updates.item,
         cost: parseFloat(updates.cost),
-        target_date: updates.date,
+        target_date: updates.date ? updates.date : null,
         category: updates.category,
         currency: updates.currency,
         is_completed: updates.isCompleted
@@ -96,7 +105,15 @@ export const getIncomeIdeas = async () => {
       .order('target_date', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    const rows = data || [];
+    return rows.sort((a, b) => {
+      const ad = a.target_date ? String(a.target_date) : null;
+      const bd = b.target_date ? String(b.target_date) : null;
+      if (!ad && !bd) return 0;
+      if (!ad) return 1;
+      if (!bd) return -1;
+      return ad.localeCompare(bd);
+    });
   } catch (error) {
     console.error('Error in getIncomeIdeas:', error);
     throw error;
@@ -115,7 +132,7 @@ export const createIncomeIdea = async (ideaData) => {
         user_id: user.id,
         idea: ideaData.idea,
         expected_amount: parseFloat(ideaData.amount),
-        target_date: ideaData.date,
+        target_date: ideaData.date ? ideaData.date : null,
         confidence_level: parseInt(ideaData.confidence),
         currency: ideaData.currency || 'USD',
         is_recurring: ideaData.isRecurring || false,
@@ -139,7 +156,7 @@ export const updateIncomeIdea = async (ideaId, updates) => {
       .update({
         idea: updates.idea,
         expected_amount: parseFloat(updates.amount),
-        target_date: updates.date,
+        target_date: updates.date ? updates.date : null,
         confidence_level: parseInt(updates.confidence),
         currency: updates.currency,
         is_recurring: updates.isRecurring,

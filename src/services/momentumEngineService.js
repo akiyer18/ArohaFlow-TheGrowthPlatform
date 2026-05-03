@@ -135,82 +135,85 @@ export async function getOrCreateDailyEffort(dateStrInput) {
 
   try {
     const userId = await getCurrentUserId();
-    const [tasksDueToday, { habits, logs }, meals, sessions, reflectionSubmitted, tasksCompletedToday] = await Promise.all([
-      fetchDayTasks(dateStr),
-      fetchDayHabitsAndLogs(dateStr),
-      fetchDayMeals(dateStr),
-      fetchDayFlowSessions(dateStr),
-      hasReflectionForDate(dateStr),
-      fetchTasksCompletedOn(dateStr),
-    ]);
-
-    const logsByHabit = {};
-    (logs || []).forEach((log) => {
-      logsByHabit[log.habit_id] = (logsByHabit[log.habit_id] || 0) + (log.count ?? 0);
-    });
-
-    let requiredCount = 0;
-    let completedRequired = 0;
-    (habits || []).forEach((habit) => {
-      const startDateStr = toDateKey(habit.start_date || new Date());
-      if (!isRequiredDay(dateStr, habit.frequency_type, habit.frequency_value || {}, startDateStr))
-        return;
-      requiredCount += 1;
-      const count = logsByHabit[habit.id] ?? 0;
-      const target = habit.target_per_day ?? 1;
-      if (count >= target) completedRequired += 1;
-    });
-
-    const habitPct = requiredCount === 0 ? 0 : Math.round((completedRequired / requiredCount) * 100);
-
-    const dueTodayIds = new Set((tasksDueToday || []).map((t) => t.id));
-    const completedToday = (tasksCompletedToday || []).filter((t) => t.status === 'Completed');
-    const denominatorTasks = [
-      ...(tasksDueToday || []),
-      ...completedToday.filter((t) => !dueTodayIds.has(t.id)),
-    ];
-    const completedTaskIds = new Set(
-      [
-        ...(tasksDueToday || []).filter((t) => t.status === 'Completed'),
-        ...completedToday,
-      ].map((t) => t.id),
-    );
-    const totalTasks = denominatorTasks.length;
-    const completedTasksCount = completedTaskIds.size;
-    const taskPct = totalTasks === 0 ? 0 : Math.round((completedTasksCount / totalTasks) * 100);
-
-    const deepWorkMinutes = (sessions || []).reduce((s, x) => s + (x.duration_minutes || 0), 0);
-    const mealScore = (meals || []).length > 0 ? 10 : 0;
-
-    const flowBonus = computeFlowBonus(deepWorkMinutes);
-    const baseEffort = computeBaseEffort(habitPct, taskPct, mealScore, reflectionSubmitted);
-    const effortScore = Math.max(0, Math.round(baseEffort + flowBonus));
-
-    const payload = {
-      user_id: userId,
-      date: dateStr,
-      effort_score: effortScore,
-      habit_pct: habitPct,
-      task_pct: taskPct,
-      deep_work_minutes: deepWorkMinutes,
-      meal_score: mealScore,
-      reflection_submitted: !!reflectionSubmitted,
-    };
-
-    const { data, error } = await supabase
-      .from('daily_effort_scores')
-      .upsert([payload], { onConflict: 'user_id,date' })
-      .select()
-      .single();
-    if (error) {
-      logDbError('getOrCreateDailyEffort.upsert', error);
-      throw error;
-    }
-    return data;
+    return await computeAndUpsertDailyEffort(userId, dateStr);
   } catch (err) {
     logDbError('getOrCreateDailyEffort', err);
     throw err;
   }
+}
+
+async function computeAndUpsertDailyEffort(userId, dateStr) {
+  const [tasksDueToday, { habits, logs }, meals, sessions, reflectionSubmitted, tasksCompletedToday] = await Promise.all([
+    fetchDayTasks(dateStr),
+    fetchDayHabitsAndLogs(dateStr),
+    fetchDayMeals(dateStr),
+    fetchDayFlowSessions(dateStr),
+    hasReflectionForDate(dateStr),
+    fetchTasksCompletedOn(dateStr),
+  ]);
+
+  const logsByHabit = {};
+  (logs || []).forEach((log) => {
+    logsByHabit[log.habit_id] = (logsByHabit[log.habit_id] || 0) + (log.count ?? 0);
+  });
+
+  let requiredCount = 0;
+  let completedRequired = 0;
+  (habits || []).forEach((habit) => {
+    const startDateStr = toDateKey(habit.start_date || new Date());
+    if (!isRequiredDay(dateStr, habit.frequency_type, habit.frequency_value || {}, startDateStr)) return;
+    requiredCount += 1;
+    const count = logsByHabit[habit.id] ?? 0;
+    const target = habit.target_per_day ?? 1;
+    if (count >= target) completedRequired += 1;
+  });
+
+  const habitPct = requiredCount === 0 ? 0 : Math.round((completedRequired / requiredCount) * 100);
+
+  const dueTodayIds = new Set((tasksDueToday || []).map((t) => t.id));
+  const completedToday = (tasksCompletedToday || []).filter((t) => t.status === 'Completed');
+  const denominatorTasks = [
+    ...(tasksDueToday || []),
+    ...completedToday.filter((t) => !dueTodayIds.has(t.id)),
+  ];
+  const completedTaskIds = new Set(
+    [
+      ...(tasksDueToday || []).filter((t) => t.status === 'Completed'),
+      ...completedToday,
+    ].map((t) => t.id),
+  );
+  const totalTasks = denominatorTasks.length;
+  const completedTasksCount = completedTaskIds.size;
+  const taskPct = totalTasks === 0 ? 0 : Math.round((completedTasksCount / totalTasks) * 100);
+
+  const deepWorkMinutes = (sessions || []).reduce((s, x) => s + (x.duration_minutes || 0), 0);
+  const mealScore = (meals || []).length > 0 ? 10 : 0;
+
+  const flowBonus = computeFlowBonus(deepWorkMinutes);
+  const baseEffort = computeBaseEffort(habitPct, taskPct, mealScore, reflectionSubmitted);
+  const effortScore = Math.max(0, Math.round(baseEffort + flowBonus));
+
+  const payload = {
+    user_id: userId,
+    date: dateStr,
+    effort_score: effortScore,
+    habit_pct: habitPct,
+    task_pct: taskPct,
+    deep_work_minutes: deepWorkMinutes,
+    meal_score: mealScore,
+    reflection_submitted: !!reflectionSubmitted,
+  };
+
+  const { data, error } = await supabase
+    .from('daily_effort_scores')
+    .upsert([payload], { onConflict: 'user_id,date' })
+    .select()
+    .single();
+  if (error) {
+    logDbError('computeAndUpsertDailyEffort.upsert', error);
+    throw error;
+  }
+  return data;
 }
 
 // --- Momentum (0-1000, starts at 0 and only adds up; never stores a decline) ---
@@ -310,6 +313,7 @@ async function getInactiveDaysBefore(userId, dateStr) {
 
 export async function getOrCreateMomentum(dateStrInput) {
   const dateStr = toDateKey(dateStrInput || new Date());
+  const todayKey = toDateKey(new Date());
   try {
     const { data: existing, error } = await supabase
       .from('momentum_history')
@@ -318,7 +322,8 @@ export async function getOrCreateMomentum(dateStrInput) {
       .limit(1)
       .maybeSingle();
     if (error) throw error;
-    if (existing) return existing;
+    // For past dates, return cached row. For today, always recompute so logs/actions are reflected.
+    if (existing && dateStr !== todayKey) return existing;
   } catch (err) {
     logDbError('getOrCreateMomentum.select', err);
   }
@@ -457,6 +462,160 @@ export async function getOrCreateMomentum(dateStrInput) {
   }
 }
 
+/**
+ * Recompute effort + momentum starting at startDateKey (inclusive) through endDateKey (inclusive).
+ * Needed because momentum is cumulative: changing a past day must propagate forward.
+ *
+ * Defaults: recompute from startDateKey through today (capped to maxDays to avoid runaway loops).
+ */
+export async function recomputeEffortAndMomentumFrom(startDateKey, endDateKey = null, maxDays = 120) {
+  const startKey = toDateKey(startDateKey);
+  const endKey = endDateKey ? toDateKey(endDateKey) : toDateKey(new Date());
+  const userId = await getCurrentUserId();
+
+  // Establish momentum just before the start key.
+  let prevMomentum = INITIAL_MOMENTUM;
+  try {
+    const { data: prevRow } = await supabase
+      .from('momentum_history')
+      .select('momentum_score,date')
+      .eq('user_id', userId)
+      .lt('date', startKey)
+      .order('date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (prevRow?.momentum_score != null) prevMomentum = prevRow.momentum_score;
+  } catch (err) {
+    logDbError('recomputeEffortAndMomentumFrom.prev', err);
+  }
+
+  const start = new Date(startKey + 'T12:00:00');
+  const end = new Date(endKey + 'T12:00:00');
+  let days = 0;
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days += 1;
+    if (days > maxDays) break;
+    const key = toDateKey(d);
+
+    // Force recompute effort (upsert overwrites).
+    const effortRow = await computeAndUpsertDailyEffort(userId, key);
+
+    // Compute momentum for this day using the same logic as getOrCreateMomentum, but chained.
+    const effortScore = effortRow?.effort_score ?? 0;
+    const habitPct = effortRow?.habit_pct ?? 0;
+    const taskPct = effortRow?.task_pct ?? 0;
+    const deepWorkMinutes = effortRow?.deep_work_minutes ?? 0;
+    const mealScore = effortRow?.meal_score ?? 0;
+    const reflectionSubmitted = !!effortRow?.reflection_submitted;
+
+    const flowBonus = computeFlowBonus(deepWorkMinutes);
+    const baseEffort = computeBaseEffort(habitPct, taskPct, mealScore, reflectionSubmitted);
+
+    const reasonBreakdown = {
+      effort: effortScore,
+      base_effort: baseEffort,
+      flow_bonus: flowBonus,
+      prev: prevMomentum,
+    };
+
+    let consistencyBonus = 0;
+    const streak = await getConsistencyStreak(userId, key);
+    if (effortRow?.habit_pct === 100 && (effortRow?.habit_pct != null) && (await fetchDayHabitsAndLogs(key)).habits?.length) {
+      consistencyBonus += ALL_HABITS_BONUS;
+      reasonBreakdown.all_habits = ALL_HABITS_BONUS;
+    }
+    if (streak >= 30) {
+      consistencyBonus += STREAK_30_BONUS;
+      reasonBreakdown.streak_30 = STREAK_30_BONUS;
+    } else if (streak >= 7) {
+      consistencyBonus += STREAK_7_BONUS;
+      reasonBreakdown.streak_7 = STREAK_7_BONUS;
+    } else if (streak >= 3) {
+      consistencyBonus += STREAK_3_BONUS;
+      reasonBreakdown.streak_3 = STREAK_3_BONUS;
+    }
+    consistencyBonus = Math.min(consistencyBonus, CONSISTENCY_CAP);
+
+    let missPenalty = 0;
+    const { habits, logs } = await fetchDayHabitsAndLogs(key);
+    const logsByHabit = {};
+    (logs || []).forEach((l) => { logsByHabit[l.habit_id] = (logsByHabit[l.habit_id] || 0) + (l.count ?? 0); });
+    let missedHabits = 0;
+    (habits || []).forEach((habit) => {
+      const startDateStr = toDateKey(habit.start_date || new Date());
+      if (!isRequiredDay(key, habit.frequency_type, habit.frequency_value || {}, startDateStr)) return;
+      const count = logsByHabit[habit.id] ?? 0;
+      const target = habit.target_per_day ?? 1;
+      if (count < target) missedHabits += 1;
+    });
+    const missedHabitPenalty = Math.min(40, missedHabits * 8);
+    missPenalty += missedHabitPenalty;
+    if (missedHabits) {
+      reasonBreakdown.missed_habits_count = missedHabits;
+      reasonBreakdown.missed_habits = missedHabitPenalty;
+      reasonBreakdown.capped_habit_penalty = missedHabitPenalty;
+    }
+
+    const overdue = await fetchOverdueTasksAsOf(key);
+    const overdueCount = overdue.length;
+    missPenalty += overdueCount * OVERDUE_TASK_PENALTY;
+    if (overdueCount) reasonBreakdown.overdue_tasks = overdueCount * OVERDUE_TASK_PENALTY;
+
+    const isZeroEffortDay = baseEffort === 0 && flowBonus === 0;
+    if (isZeroEffortDay) {
+      missPenalty += ZERO_EFFORT_PENALTY;
+      reasonBreakdown.zero_effort = ZERO_EFFORT_PENALTY;
+    }
+
+    const consecutiveBad = await getConsecutiveBadDays(userId, key, { baseEffort, flowBonus });
+    if (consecutiveBad >= 2) {
+      missPenalty += TWO_BAD_DAYS_EXTRA;
+      reasonBreakdown.two_bad_days = TWO_BAD_DAYS_EXTRA;
+    }
+
+    const inactiveDays = await getInactiveDaysBefore(userId, key);
+    if (inactiveDays >= INACTIVE_ACCELERATION_AFTER) {
+      const decay = INACTIVE_DAY_DECAY * (inactiveDays - INACTIVE_ACCELERATION_AFTER + 1);
+      missPenalty += decay;
+      reasonBreakdown.inactive_decay = decay;
+    } else if (isZeroEffortDay && inactiveDays > 0) {
+      missPenalty += INACTIVE_DAY_DECAY;
+      reasonBreakdown.inactive_decay = INACTIVE_DAY_DECAY;
+    }
+
+    const performanceDelta =
+      Math.round(Math.min(effortScore, 100) * 0.5) +
+      Math.round(Math.max(0, effortScore - 100) * 0.8);
+
+    const rawDelta = performanceDelta + consistencyBonus - missPenalty;
+    const momentumScore = Math.max(prevMomentum, Math.min(1000, prevMomentum + rawDelta));
+    const actualDelta = momentumScore - prevMomentum;
+
+    reasonBreakdown.delta = actualDelta;
+    reasonBreakdown.performance_delta = performanceDelta;
+    reasonBreakdown.consistency_bonus = consistencyBonus;
+    reasonBreakdown.miss_penalty = missPenalty;
+
+    const payload = {
+      user_id: userId,
+      date: key,
+      momentum_score: momentumScore,
+      delta: actualDelta,
+      reason_breakdown: reasonBreakdown,
+    };
+
+    const { data, error } = await supabase
+      .from('momentum_history')
+      .upsert([payload], { onConflict: 'user_id,date' })
+      .select()
+      .single();
+    if (error) throw error;
+
+    prevMomentum = data?.momentum_score ?? momentumScore;
+  }
+}
+
 /** Get today's effort + momentum (engine entry point for UI). */
 export async function getTodayEffortAndMomentum() {
   const today = toDateKey(new Date());
@@ -470,10 +629,17 @@ export async function getTodayEffortAndMomentum() {
 /** Get effort + momentum for a date range (for calendar). Ensures today is computed when in range. */
 export async function getEffortAndMomentumForRange(startDate, endDate) {
   try {
-    const today = toDateKey(new Date());
-    if (today >= startDate && today <= endDate) {
-      await Promise.all([getOrCreateDailyEffort(today), getOrCreateMomentum(today)]);
+    // Ensure effort + momentum rows exist for all days in range (so calendar can display them).
+    // Today is always recomputed; past days are created if missing.
+    const start = new Date(startDate + 'T12:00:00');
+    const end = new Date(endDate + 'T12:00:00');
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = toDateKey(d);
+      // Sequential to keep momentum dependency sane (getOrCreateMomentum reads prev day).
+      await getOrCreateDailyEffort(key);
+      await getOrCreateMomentum(key);
     }
+
     const userId = await getCurrentUserId();
     const [effortRes, momentumRes] = await Promise.all([
       supabase.from('daily_effort_scores').select('*').eq('user_id', userId).gte('date', startDate).lte('date', endDate),
@@ -484,8 +650,8 @@ export async function getEffortAndMomentumForRange(startDate, endDate) {
     const momentumByDate = {};
     (momentumRes.data || []).forEach((r) => { momentumByDate[r.date] = r; });
     const out = {};
-    const start = new Date(startDate + 'T12:00:00');
-    const end = new Date(endDate + 'T12:00:00');
+    const startOut = new Date(startDate + 'T12:00:00');
+    const endOut = new Date(endDate + 'T12:00:00');
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const key = toDateKey(d);
       const effortRow = effortByDate[key];

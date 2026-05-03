@@ -27,7 +27,13 @@
   }
 
   body {
-    background: var(--bg-primary);
+    background:
+      linear-gradient(180deg, rgba(9, 13, 20, 0.55) 0%, rgba(9, 13, 20, 0.7) 100%),
+      url('/images/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: var(--text-primary);
     font-family: "Inter", system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;

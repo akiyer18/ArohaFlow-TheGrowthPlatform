@@ -16,6 +16,7 @@ import {
   logCompletion,
   undoCompletion,
   upsertDailyReflection,
+  recomputeEffortAndMomentumFrom,
 } from '../services';
 import { useCalendarData, toDateKey } from '../modules/smart-calendar/useCalendarData';
 import { getWeekGridDays } from '../modules/smart-calendar/calendarUtils';
@@ -127,18 +128,23 @@ export default function SmartCalendar() {
     } else {
       await completeTask(task.id);
     }
+    const key = task?.due_date ? toDateKey(task.due_date) : selectedDateKey;
+    await recomputeEffortAndMomentumFrom(key);
     refetch();
-  }, [refetch]);
+  }, [refetch, selectedDateKey]);
 
-  const handleLogHabit = useCallback((habitId, dateKey) => {
-    return logCompletion(habitId, dateKey, 1);
+  const handleLogHabit = useCallback(async (habitId, dateKey) => {
+    await logCompletion(habitId, dateKey, 1);
+    await recomputeEffortAndMomentumFrom(dateKey);
   }, []);
-  const handleUndoHabit = useCallback((habitId, dateKey) => {
-    return undoCompletion(habitId, dateKey);
+  const handleUndoHabit = useCallback(async (habitId, dateKey) => {
+    await undoCompletion(habitId, dateKey);
+    await recomputeEffortAndMomentumFrom(dateKey);
   }, []);
 
-  const handleSetMood = useCallback((dateKey, mood) => {
-    return upsertDailyReflection(dateKey, mood, null);
+  const handleSetMood = useCallback(async (dateKey, mood) => {
+    await upsertDailyReflection(dateKey, mood, null);
+    await recomputeEffortAndMomentumFrom(dateKey);
   }, []);
 
   const handleAddMeal = useCallback((dateKey) => {
@@ -149,8 +155,9 @@ export default function SmartCalendar() {
   const handleSaveMeal = useCallback(async (payload) => {
     await createMealPlan(payload);
     setMealModalOpen(false);
+    await recomputeEffortAndMomentumFrom(payload?.date || selectedDateKey);
     refetch();
-  }, [refetch]);
+  }, [refetch, selectedDateKey]);
 
   const handleTodayClick = useCallback(() => {
     const t = new Date();

@@ -81,24 +81,29 @@ export default function FlowMode() {
   }, [load]);
 
   useEffect(() => {
-    if (!timerRunning) return;
+    if (!timerRunning || !timerStartedAt) return;
     const interval = setInterval(() => {
-      setTimerSeconds((s) => s + 1);
+      const elapsedSeconds = Math.floor((Date.now() - timerStartedAt) / 1000);
+      setTimerSeconds(elapsedSeconds);
     }, 1000);
     return () => clearInterval(interval);
-  }, [timerRunning]);
+  }, [timerRunning, timerStartedAt]);
 
   const handleStartPause = useCallback(() => {
     if (timerRunning) {
       setTimerRunning(false);
     } else {
-      setTimerStartedAt((prev) => prev || Date.now());
+      // Start a fresh deep-work block from now
+      const now = Date.now();
+      setTimerStartedAt(now);
+      setTimerSeconds(0);
       setTimerRunning(true);
     }
   }, [timerRunning]);
 
   const handleSaveSession = useCallback(async () => {
-    const minutes = Math.floor(timerSeconds / 60);
+    if (!timerStartedAt) return;
+    const minutes = Math.floor((Date.now() - timerStartedAt) / 60000);
     if (minutes < 1) return;
     setSavingSession(true);
     try {
@@ -112,7 +117,7 @@ export default function FlowMode() {
     } finally {
       setSavingSession(false);
     }
-  }, [today, timerSeconds, load]);
+  }, [today, timerStartedAt, load]);
 
   const handleToggleTask = useCallback(
     async (task) => {

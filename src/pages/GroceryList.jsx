@@ -92,10 +92,10 @@ const GroceryList = () => {
                 <div className="space-y-2">
                   {groupedItems[category].map((item) => (
                     <div key={item.id} className="flex items-center justify-between rounded-ui border border-app-border bg-app-bg-primary px-3 py-2">
-                      <div>
+          <div>
                         <p className={`text-sm ${item.is_purchased ? 'line-through app-muted' : ''}`}>{item.name}</p>
                         <p className="text-xs app-muted">{item.quantity || '1'} {item.unit || ''}</p>
-                      </div>
+                </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -111,10 +111,10 @@ const GroceryList = () => {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
               </Card>
             ))}
           </div>
@@ -126,7 +126,7 @@ const GroceryList = () => {
               <Button onClick={() => setShowInventoryModal(true)}><Plus className="h-4 w-4" />Add inventory</Button>
             </div>
             <div className="app-grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {inventory.map((item) => (
+                {inventory.map((item) => (
                 <Card key={item.id}>
                   <div className="mb-3 flex items-start justify-between">
                     <h3 className="capitalize">{item.ingredient_name}</h3>
@@ -137,8 +137,8 @@ const GroceryList = () => {
                   <p className="text-xs app-muted">Qty: {item.quantity || '-'}</p>
                   <p className="text-xs app-muted">Location: {item.location || '-'}</p>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
           </div>
         )}
 
@@ -178,7 +178,7 @@ const GroceryList = () => {
           <Input type="number" name="estimatedPrice" placeholder="Estimated price" />
           <Input type="date" name="dueDate" />
           <Button type="submit" className="w-full">Save Item</Button>
-        </form>
+          </form>
       </Modal>
 
       <Modal open={showInventoryModal} onClose={() => setShowInventoryModal(false)} title="Add inventory item">
@@ -203,10 +203,10 @@ const GroceryList = () => {
           <Input name="location" placeholder="Location" />
           <Input type="date" name="expiryDate" />
           <Button type="submit" className="w-full">Save Inventory Item</Button>
-        </form>
+          </form>
       </Modal>
     </div>
   );
 };
 
-export default GroceryList;
+export default GroceryList; 
