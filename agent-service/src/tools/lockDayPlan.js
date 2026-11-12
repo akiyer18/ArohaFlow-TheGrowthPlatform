@@ -37,8 +37,9 @@ export async function lockDayPlan(deps, input) {
   await store.saveDayPlan(locked);
   await store.appendDayPlanChange({
     date: input.date,
-    type: 'lock',
+    type: 'accept',
     at: clock.now().toISOString(),
+    blocks: structuredClone(locked.blocks),
   });
   await store.appendAgentActivity({
     type: 'lock_day_plan',

@@ -9,8 +9,12 @@ Background tool facade for ArohaFlow (scheduler + MCP share this interface).
 - `syncCalendar`
 - `proposeDayPlan`
 - `lockDayPlan`
+- `unlockDayPlan`
+- `editDayPlan`
 - `logHabitCheckIn`
 - `completeMicroaction`
+- `completeAction`
+- `evaluateStreak`
 
 ## Ports
 

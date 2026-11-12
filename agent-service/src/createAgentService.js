@@ -3,7 +3,9 @@ import { buildEmailDigest } from './tools/buildEmailDigest.js';
 import { syncCalendar } from './tools/syncCalendar.js';
 import { proposeDayPlan } from './tools/proposeDayPlan.js';
 import { lockDayPlan } from './tools/lockDayPlan.js';
-import { logHabitCheckIn, completeMicroaction } from './tools/completions.js';
+import { unlockDayPlan, editDayPlan } from './tools/dayPlanEdit.js';
+import { logHabitCheckIn, completeMicroaction, completeAction } from './tools/completions.js';
+import { evaluateStreak } from './tools/streak.js';
 import { DayPlanStatus } from './domain/statuses.js';
 
 /**
@@ -58,12 +60,28 @@ export function createAgentService(deps) {
       return lockDayPlan({ store, calendarWrite, clock }, input);
     },
 
+    async unlockDayPlan(input) {
+      return unlockDayPlan({ store, clock }, input);
+    },
+
+    async editDayPlan(input) {
+      return editDayPlan({ store, clock }, input);
+    },
+
     async logHabitCheckIn(input) {
       return logHabitCheckIn({ store, clock }, input);
     },
 
     async completeMicroaction(input) {
       return completeMicroaction({ store, clock }, input);
+    },
+
+    async completeAction(input) {
+      return completeAction({ store, clock }, input);
+    },
+
+    async evaluateStreak(input) {
+      return evaluateStreak({ store, clock }, input);
     },
   };
 }

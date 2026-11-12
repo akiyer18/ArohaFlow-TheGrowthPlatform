@@ -6,13 +6,36 @@ export function createMemoryStore() {
     emailDigestByDate: new Map(),
     calendarEvents: new Map(),
     dailyPointsByDate: new Map(),
-    streak: { count: 0, freezeRemainingThisWeek: 1 },
+    streak: { count: 0, freezeRemainingThisWeek: 1, freezeWeekKey: null },
+    streakDaysMet: new Set(),
+    streakDaysResolved: new Set(),
     agentActivity: [],
     habitCheckInsByDate: new Map(),
     senderAllowlist: [],
     goals: [],
     dayPlanChangeLog: [],
   };
+
+  function isoWeekKey(dateKey) {
+    const date = new Date(`${dateKey}T12:00:00.000Z`);
+    const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    const day = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const week = Math.ceil(((utc - yearStart) / 86400000 + 1) / 7);
+    return `${utc.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+  }
+
+  function ensureFreezeWeek(dateKey) {
+    const weekKey = isoWeekKey(dateKey);
+    if (state.streak.freezeWeekKey !== weekKey) {
+      state.streak = {
+        ...state.streak,
+        freezeWeekKey: weekKey,
+        freezeRemainingThisWeek: 1,
+      };
+    }
+  }
 
   return {
     async getDayPlan(dateKey) {
@@ -23,6 +46,9 @@ export function createMemoryStore() {
     },
     async appendDayPlanChange(entry) {
       state.dayPlanChangeLog.push(entry);
+    },
+    async listDayPlanChanges(dateKey) {
+      return state.dayPlanChangeLog.filter((entry) => entry.date === dateKey).map((e) => ({ ...e }));
     },
     async getEmailDigest(dateKey) {
       return state.emailDigestByDate.get(dateKey) ?? [];
@@ -39,7 +65,40 @@ export function createMemoryStore() {
       return 100;
     },
     async getStreak() {
-      return { ...state.streak };
+      const { count, freezeRemainingThisWeek } = state.streak;
+      return { count, freezeRemainingThisWeek };
+    },
+    async recordStreakTargetMet(dateKey) {
+      ensureFreezeWeek(dateKey);
+      if (state.streakDaysMet.has(dateKey)) {
+        return this.getStreak();
+      }
+      state.streakDaysMet.add(dateKey);
+      state.streakDaysResolved.add(dateKey);
+      state.streak = {
+        ...state.streak,
+        count: state.streak.count + 1,
+      };
+      return this.getStreak();
+    },
+    async recordStreakMiss(dateKey) {
+      ensureFreezeWeek(dateKey);
+      if (state.streakDaysResolved.has(dateKey) || state.streakDaysMet.has(dateKey)) {
+        return this.getStreak();
+      }
+      state.streakDaysResolved.add(dateKey);
+      if (state.streak.freezeRemainingThisWeek > 0) {
+        state.streak = {
+          ...state.streak,
+          freezeRemainingThisWeek: state.streak.freezeRemainingThisWeek - 1,
+        };
+      } else {
+        state.streak = {
+          ...state.streak,
+          count: 0,
+        };
+      }
+      return this.getStreak();
     },
     async listAgentActivity() {
       return [...state.agentActivity];
@@ -119,6 +178,20 @@ export function createMemoryStore() {
         }
       }
       throw new Error(`Microaction not found: ${microactionId}`);
+    },
+    async completeAction(actionId) {
+      for (const goal of state.goals) {
+        for (const action of goal.actions || []) {
+          if (action.id === actionId) {
+            if (action.status === ActionStatus.COMPLETED) {
+              return { alreadyComplete: true, action };
+            }
+            action.status = ActionStatus.COMPLETED;
+            return { alreadyComplete: false, action };
+          }
+        }
+      }
+      throw new Error(`Action not found: ${actionId}`);
     },
     /** @internal test helper */
     _state: state,

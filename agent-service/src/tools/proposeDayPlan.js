@@ -141,6 +141,7 @@ export async function proposeDayPlan(deps, options = {}) {
     date: dateKey,
     type: 'propose',
     at: clock.now().toISOString(),
+    blocks: structuredClone(plan.blocks),
   });
   await store.appendAgentActivity({
     type: 'propose_day_plan',
