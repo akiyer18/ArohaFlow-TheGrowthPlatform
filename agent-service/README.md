@@ -9,7 +9,7 @@ Background tool facade for ArohaFlow (scheduler + MCP share this interface).
 - `syncCalendar`
 - `proposeDayPlan`
 - `lockDayPlan`
-- `unlockDayPlan`
+- `unlockDayPlan` (retracts Calendar Publish on Unlock)
 - `editDayPlan`
 - `logHabitCheckIn`
 - `completeMicroaction`

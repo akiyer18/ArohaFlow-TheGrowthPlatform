@@ -1,6 +1,5 @@
 import { DayPlanStatus } from '../domain/statuses.js';
-
-const AROHAFLOW_CALENDAR_ID = 'ArohaFlow';
+import { AROHAFLOW_CALENDAR_ID, publishExternalKey } from '../domain/arohaflowCalendar.js';
 
 /**
  * @param {{ store: object, calendarWrite: object, clock: { now(): Date } }} deps
@@ -25,7 +24,7 @@ export async function lockDayPlan(deps, input) {
     for (const block of toPublish) {
       await calendarWrite.upsertEvent({
         calendarId: AROHAFLOW_CALENDAR_ID,
-        externalKey: `${input.date}:${block.id}`,
+        externalKey: publishExternalKey(input.date, block.id),
         title: block.title,
         startAt: block.startAt,
         endAt: block.endAt,
