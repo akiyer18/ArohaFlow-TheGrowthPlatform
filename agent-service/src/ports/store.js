@@ -1,6 +1,6 @@
 /**
  * Store port — domain ops for the Agent Service.
- * Adapters: memory (tests), Supabase (later). Callers must not use PostgREST.
+ * Adapters: memory (tests), Supabase (`createSupabaseStore`). Callers must not use PostgREST.
  *
  * Expected methods (duck-typed contract documented here):
  * - getDayPlan / saveDayPlan / appendDayPlanChange / listDayPlanChanges

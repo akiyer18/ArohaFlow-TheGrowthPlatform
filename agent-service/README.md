@@ -45,6 +45,13 @@ Local entry uses memory Store + fake Google/LLM ports until live OAuth adapters 
 
 Clock, Store, Gmail (read-only), LLM (email rank), Calendar read, Calendar write (ArohaFlow calendar only).
 
+### Store
+
+- Memory: default for unit tests
+- Supabase: set `AROHAFLOW_SUPABASE_URL` + `AROHAFLOW_SUPABASE_SERVICE_ROLE_KEY`, apply `database/agent-service-schema.sql`
+
+Cadence/MCP use `createStoreFromEnv()` so both processes share durable data when Supabase is configured.
+
 ## Test
 
 ```bash
