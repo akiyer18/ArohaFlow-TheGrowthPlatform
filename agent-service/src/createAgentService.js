@@ -6,6 +6,7 @@ import { lockDayPlan } from './tools/lockDayPlan.js';
 import { unlockDayPlan, editDayPlan } from './tools/dayPlanEdit.js';
 import { logHabitCheckIn, completeMicroaction, completeAction } from './tools/completions.js';
 import { evaluateStreak } from './tools/streak.js';
+import { runMorningCadence, runEveningCadence } from './tools/cadence.js';
 import { DayPlanStatus } from './domain/statuses.js';
 
 /**
@@ -19,7 +20,7 @@ export function createAgentService(deps) {
     assertGmailPortIsReadOnly(gmail);
   }
 
-  return {
+  const facade = {
     async listToday() {
       const date = clock.todayDateKey();
       const existingPlan = await store.getDayPlan(date);
@@ -83,5 +84,27 @@ export function createAgentService(deps) {
     async evaluateStreak(input) {
       return evaluateStreak({ store, clock }, input);
     },
+
+    async runMorningCadence() {
+      return runMorningCadence({
+        syncCalendar: () => facade.syncCalendar(),
+        buildEmailDigest: () => facade.buildEmailDigest(),
+        proposeDayPlan: (options) => facade.proposeDayPlan(options),
+        clock,
+        store,
+      });
+    },
+
+    async runEveningCadence() {
+      return runEveningCadence({
+        syncCalendar: () => facade.syncCalendar(),
+        buildEmailDigest: () => facade.buildEmailDigest(),
+        proposeDayPlan: (options) => facade.proposeDayPlan(options),
+        clock,
+        store,
+      });
+    },
   };
+
+  return facade;
 }
