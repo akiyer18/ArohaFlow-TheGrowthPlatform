@@ -70,6 +70,56 @@ describe('unlock / edit Day Plan change-log', () => {
     expect(editEntry.blocks[0].title).toBe('Wire Store (edited)');
   });
 
+  it('retracts Calendar Publish Blocks when Unlocking a Locked Day Plan', async () => {
+    const clock = createFixedClock(new Date('2026-11-11T17:30:00.000Z'));
+    const store = createMemoryStore();
+    await store.saveDayPlan({
+      date: '2026-11-12',
+      status: DayPlanStatus.PROPOSED,
+      blocks: [
+        {
+          id: 'b1',
+          kind: BlockKind.FLEXIBLE,
+          purpose: 'deep-work',
+          microactionId: 'ma1',
+          publishToCalendar: true,
+          startAt: '2026-11-12T10:00:00.000Z',
+          endAt: '2026-11-12T12:00:00.000Z',
+          title: 'Ship retract',
+        },
+        {
+          id: 'b2',
+          kind: BlockKind.FLEXIBLE,
+          purpose: 'deep-work',
+          microactionId: 'ma2',
+          publishToCalendar: false,
+          startAt: '2026-11-12T13:00:00.000Z',
+          endAt: '2026-11-12T15:00:00.000Z',
+          title: 'Stay local',
+        },
+      ],
+    });
+
+    const calendarWrite = createFakeCalendarWrite();
+    const agent = createAgentService({ clock, store, calendarWrite });
+
+    await agent.lockDayPlan({ date: '2026-11-12', confirmed: true });
+    expect(calendarWrite.events).toHaveLength(1);
+    expect(calendarWrite.events[0].externalKey).toBe('2026-11-12:b1');
+
+    await agent.unlockDayPlan({ date: '2026-11-12' });
+    expect(calendarWrite.events).toHaveLength(0);
+
+    const today = await agent.listToday();
+    expect(
+      today.agentActivity.some((a) => a.type === 'unlock_day_plan' && /retracted .*Calendar Publish Block/i.test(a.summary)),
+    ).toBe(true);
+
+    await agent.lockDayPlan({ date: '2026-11-12', confirmed: true });
+    expect(calendarWrite.events).toHaveLength(1);
+    expect(calendarWrite.events[0].title).toBe('Ship retract');
+  });
+
   it('allows Habit Check-in and Microaction Completion while Day Plan is Locked', async () => {
     const clock = createFixedClock(new Date('2026-11-12T09:00:00.000Z'));
     const store = createMemoryStore();

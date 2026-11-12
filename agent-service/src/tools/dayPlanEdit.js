@@ -1,18 +1,33 @@
 import { DayPlanStatus } from '../domain/statuses.js';
+import { AROHAFLOW_CALENDAR_ID, publishExternalKey } from '../domain/arohaflowCalendar.js';
 
 /**
  * Unlock a Locked Day Plan so the user can edit and re-publish.
- * @param {{ store: object, clock: { now(): Date } }} deps
+ * Retracts Calendar Publish for opted-in Blocks on the ArohaFlow calendar.
+ * @param {{ store: object, clock: { now(): Date }, calendarWrite?: object }} deps
  * @param {{ date: string }} input
  */
 export async function unlockDayPlan(deps, input) {
-  const { store, clock } = deps;
+  const { store, clock, calendarWrite } = deps;
   const plan = await store.getDayPlan(input.date);
   if (!plan) {
     throw new Error(`No Day Plan for ${input.date}`);
   }
   if (plan.status !== DayPlanStatus.LOCKED) {
     return plan;
+  }
+
+  const published = plan.blocks.filter((block) => block.publishToCalendar);
+  if (published.length > 0) {
+    if (!calendarWrite) {
+      throw new Error('Calendar write port required to retract Calendar Publish on Unlock');
+    }
+    for (const block of published) {
+      await calendarWrite.deleteEvent({
+        calendarId: AROHAFLOW_CALENDAR_ID,
+        externalKey: publishExternalKey(input.date, block.id),
+      });
+    }
   }
 
   const unlocked = { ...plan, status: DayPlanStatus.PROPOSED };
@@ -25,7 +40,7 @@ export async function unlockDayPlan(deps, input) {
   });
   await store.appendAgentActivity({
     type: 'unlock_day_plan',
-    summary: `Unlocked Day Plan for ${input.date}`,
+    summary: `Unlocked Day Plan for ${input.date}; retracted ${published.length} Calendar Publish Block(s)`,
     at: clock.now().toISOString(),
   });
 

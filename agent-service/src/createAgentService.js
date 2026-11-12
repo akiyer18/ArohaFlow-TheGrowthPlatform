@@ -62,7 +62,7 @@ export function createAgentService(deps) {
     },
 
     async unlockDayPlan(input) {
-      return unlockDayPlan({ store, clock }, input);
+      return unlockDayPlan({ store, clock, calendarWrite }, input);
     },
 
     async editDayPlan(input) {
