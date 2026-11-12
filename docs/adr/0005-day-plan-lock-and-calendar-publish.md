@@ -1,0 +1,3 @@
+# Day Plan lock and Calendar Publish
+
+A read-only Calendar cannot make tomorrow’s Microactions visible where the user already lives (Google Calendar), and an unlocked morning reshuffle fights “plan the night before.” **Decision:** Gmail stays read-only; Calendar is read for external events and **limited-write** for Calendar Publish onto a dedicated “ArohaFlow” calendar. Microactions/Blocks are published only when opted in. The evening Agent run (~17:30) publishes after the user confirms tomorrow’s Day Plan (or an explicit lock-tomorrow action), which creates a **Locked Day Plan**. Rules do not reshuffle a Locked Day Plan; Unlock → edit → re-publish is allowed. Completions and Habit Check-ins work while Locked. Tokens stay server-side in the Agent Service.

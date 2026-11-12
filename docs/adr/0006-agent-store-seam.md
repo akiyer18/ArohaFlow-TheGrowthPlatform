@@ -1,0 +1,3 @@
+# Agent Service owns a domain Store seam first
+
+Legacy UI modules talk PostgREST through a shared `dataClient`, so Local vs Supabase look like adapters while the product interface stays the query builder. The Agent Service needs a testable Store port that speaks glossary nouns, not table dialect. **Decision:** introduce one **Store** interface for OS entities (Day Plan, Email Digest, Goals/Actions/Microactions, Habit Check-ins, Daily Points, Calendar Events, Sender Allowlist, Agent Activity). Inject it into the Agent Service tool facade. Ship an in-memory fake adapter for tests and a Supabase adapter for real runs. Do **not** big-bang migrate existing `*Service.js` / LocalService query emulation in v1 — expand the new seam beside the old; migrate callers later.
