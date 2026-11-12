@@ -1,3 +1,5 @@
+import { DayPlanStatus } from '../domain/statuses.js';
+
 const AROHAFLOW_CALENDAR_ID = 'ArohaFlow';
 
 /**
@@ -31,7 +33,7 @@ export async function lockDayPlan(deps, input) {
     }
   }
 
-  const locked = { ...plan, status: 'locked' };
+  const locked = { ...plan, status: DayPlanStatus.LOCKED };
   await store.saveDayPlan(locked);
   await store.appendDayPlanChange({
     date: input.date,

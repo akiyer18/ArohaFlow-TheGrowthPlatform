@@ -4,6 +4,7 @@ import { syncCalendar } from './tools/syncCalendar.js';
 import { proposeDayPlan } from './tools/proposeDayPlan.js';
 import { lockDayPlan } from './tools/lockDayPlan.js';
 import { logHabitCheckIn, completeMicroaction } from './tools/completions.js';
+import { DayPlanStatus } from './domain/statuses.js';
 
 /**
  * Agent Service tool facade — primary seam for scheduler, MCP, and tests.
@@ -22,7 +23,7 @@ export function createAgentService(deps) {
       const existingPlan = await store.getDayPlan(date);
       const dayPlan = existingPlan ?? {
         date,
-        status: 'empty',
+        status: DayPlanStatus.EMPTY,
         blocks: [],
       };
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createAgentService } from '../src/createAgentService.js';
 import { createFixedClock } from '../src/adapters/fixedClock.js';
 import { createMemoryStore } from '../src/adapters/memoryStore.js';
+import { ActionStatus, MicroactionStatus } from '../src/domain/statuses.js';
 
 describe('completions and Daily Points', () => {
   it('awards Habit Check-in and Microaction Completion idempotently', async () => {
@@ -15,8 +16,8 @@ describe('completions and Daily Points', () => {
           {
             id: 'a1',
             title: 'ArohaFlow',
-            status: 'active',
-            microactions: [{ id: 'ma1', title: 'Wire Store', status: 'open' }],
+            status: ActionStatus.ACTIVE,
+            microactions: [{ id: 'ma1', title: 'Wire Store', status: MicroactionStatus.OPEN }],
           },
         ],
       },

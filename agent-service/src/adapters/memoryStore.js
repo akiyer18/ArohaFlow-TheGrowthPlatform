@@ -1,3 +1,5 @@
+import { ActionStatus, MicroactionStatus } from '../domain/statuses.js';
+
 export function createMemoryStore() {
   const state = {
     dayPlans: new Map(),
@@ -81,9 +83,9 @@ export function createMemoryStore() {
       const open = [];
       for (const goal of state.goals) {
         for (const action of goal.actions || []) {
-          if (action.status !== 'active') continue;
+          if (action.status !== ActionStatus.ACTIVE) continue;
           for (const micro of action.microactions || []) {
-            if (micro.status === 'open') {
+            if (micro.status === MicroactionStatus.OPEN) {
               open.push({
                 ...micro,
                 actionId: action.id,
@@ -99,7 +101,7 @@ export function createMemoryStore() {
       const active = [];
       for (const goal of state.goals) {
         for (const action of goal.actions || []) {
-          if (action.status === 'active') active.push(action);
+          if (action.status === ActionStatus.ACTIVE) active.push(action);
         }
       }
       return active;
@@ -109,8 +111,8 @@ export function createMemoryStore() {
         for (const action of goal.actions || []) {
           for (const micro of action.microactions || []) {
             if (micro.id === microactionId) {
-              if (micro.status === 'completed') return { alreadyComplete: true, micro };
-              micro.status = 'completed';
+              if (micro.status === MicroactionStatus.COMPLETED) return { alreadyComplete: true, micro };
+              micro.status = MicroactionStatus.COMPLETED;
               return { alreadyComplete: false, micro };
             }
           }

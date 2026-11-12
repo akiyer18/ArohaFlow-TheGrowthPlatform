@@ -1,3 +1,5 @@
+import { BlockKind, DayPlanStatus } from '../domain/statuses.js';
+
 const MAX_MICROACTIONS_PER_DAY = 5;
 const MAX_ACTIVE_ACTIONS = 3;
 
@@ -5,7 +7,7 @@ function fixedBlocksFor(dateKey) {
   return [
     {
       id: `fixed-gym-${dateKey}`,
-      kind: 'fixed',
+      kind: BlockKind.FIXED,
       purpose: 'gym',
       title: 'Gym',
       startAt: `${dateKey}T07:00:00.000Z`,
@@ -13,7 +15,7 @@ function fixedBlocksFor(dateKey) {
     },
     {
       id: `fixed-work-${dateKey}`,
-      kind: 'fixed',
+      kind: BlockKind.FIXED,
       purpose: 'work-window',
       title: 'Work window',
       startAt: `${dateKey}T09:00:00.000Z`,
@@ -21,7 +23,7 @@ function fixedBlocksFor(dateKey) {
     },
     {
       id: `fixed-wind-${dateKey}`,
-      kind: 'fixed',
+      kind: BlockKind.FIXED,
       purpose: 'wind-down',
       title: 'Wind-down',
       startAt: `${dateKey}T19:00:00.000Z`,
@@ -38,7 +40,7 @@ export async function proposeDayPlan(deps, options = {}) {
   const { store, clock } = deps;
   const dateKey = options.date ?? clock.todayDateKey();
   const existing = await store.getDayPlan(dateKey);
-  if (existing?.status === 'locked') {
+  if (existing?.status === DayPlanStatus.LOCKED) {
     return existing;
   }
 
@@ -50,7 +52,7 @@ export async function proposeDayPlan(deps, options = {}) {
     const hour = 10 + index * 2;
     return {
       id: `flex-${micro.id}`,
-      kind: 'flexible',
+      kind: BlockKind.FLEXIBLE,
       purpose: 'deep-work',
       title: micro.title,
       microactionId: micro.id,
@@ -62,7 +64,7 @@ export async function proposeDayPlan(deps, options = {}) {
 
   const plan = {
     date: dateKey,
-    status: 'proposed',
+    status: DayPlanStatus.PROPOSED,
     blocks: [...fixedBlocksFor(dateKey), ...flexible],
   };
 

@@ -3,6 +3,7 @@ import { createAgentService } from '../src/createAgentService.js';
 import { createFixedClock } from '../src/adapters/fixedClock.js';
 import { createMemoryStore } from '../src/adapters/memoryStore.js';
 import { createFakeCalendarWrite } from '../src/adapters/fakeCalendarWrite.js';
+import { BlockKind, DayPlanStatus } from '../src/domain/statuses.js';
 
 describe('lock_day_plan', () => {
   it('does not publish without explicit confirmation', async () => {
@@ -10,11 +11,11 @@ describe('lock_day_plan', () => {
     const store = createMemoryStore();
     await store.saveDayPlan({
       date: '2026-11-12',
-      status: 'proposed',
+      status: DayPlanStatus.PROPOSED,
       blocks: [
         {
           id: 'b1',
-          kind: 'flexible',
+          kind: BlockKind.FLEXIBLE,
           purpose: 'deep-work',
           microactionId: 'ma1',
           publishToCalendar: true,
@@ -39,11 +40,11 @@ describe('lock_day_plan', () => {
     const store = createMemoryStore();
     await store.saveDayPlan({
       date: '2026-11-12',
-      status: 'proposed',
+      status: DayPlanStatus.PROPOSED,
       blocks: [
         {
           id: 'b1',
-          kind: 'flexible',
+          kind: BlockKind.FLEXIBLE,
           purpose: 'deep-work',
           microactionId: 'ma1',
           publishToCalendar: true,
@@ -53,7 +54,7 @@ describe('lock_day_plan', () => {
         },
         {
           id: 'b2',
-          kind: 'flexible',
+          kind: BlockKind.FLEXIBLE,
           purpose: 'deep-work',
           microactionId: 'ma2',
           publishToCalendar: false,
@@ -68,7 +69,7 @@ describe('lock_day_plan', () => {
     const agent = createAgentService({ clock, store, calendarWrite });
     const plan = await agent.lockDayPlan({ date: '2026-11-12', confirmed: true });
 
-    expect(plan.status).toBe('locked');
+    expect(plan.status).toBe(DayPlanStatus.LOCKED);
     expect(calendarWrite.events).toHaveLength(1);
     expect(calendarWrite.events[0].calendarId).toBe('ArohaFlow');
     expect(calendarWrite.events[0].title).toBe('Wire Store');
