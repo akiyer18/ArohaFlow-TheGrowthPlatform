@@ -12,6 +12,38 @@ function fakeFacade() {
     async upsertApplication(input) {
       return { ...input };
     },
+    async listGoals() {
+      return [{ id: 'g1', title: 'Land a role', actions: [] }];
+    },
+    async upsertGoal(input) {
+      return { id: input.id || 'g-new', title: input.title, actions: [] };
+    },
+    async upsertAction(input) {
+      return { id: input.id || 'a-new', goalId: input.goalId, title: input.title, status: input.status };
+    },
+    async upsertMicroaction(input) {
+      return {
+        id: input.id || 'm-new',
+        actionId: input.actionId,
+        title: input.title,
+        status: input.status,
+      };
+    },
+    async getWeeklyPlanProposal() {
+      return { goalId: 'g1', actions: [{ title: 'Candidate' }], committed: false };
+    },
+    async proposeWeeklyPlan(input) {
+      return { goalId: input.goalId, actions: [{ title: 'Proposed' }], committed: false };
+    },
+    async editWeeklyPlan(input) {
+      return { goalId: 'g1', actions: input.actions, committed: false };
+    },
+    async acceptWeeklyPlan() {
+      return { goalId: 'g1', actions: [{ title: 'Accepted', microactions: [] }], committed: true };
+    },
+    async scheduleMicroaction(input) {
+      return { date: input.date, status: 'proposed', blocks: [{ microactionId: input.microactionId }] };
+    },
   };
 }
 
@@ -70,5 +102,96 @@ describe('Agent HTTP (#13)', () => {
         port: 0,
       }),
     ).rejects.toThrow(/loopback|127\.0\.0\.1|localhost/i);
+  });
+
+  it('maps Goals authoring routes onto the facade (#33)', async () => {
+    const agent = fakeFacade();
+    const started = await createAgentHttpServer({
+      agent,
+      host: '127.0.0.1',
+      port: 0,
+    });
+    server = started.server;
+    const { port } = started;
+    const base = `http://127.0.0.1:${port}`;
+
+    const goalsRes = await fetch(`${base}/goals`);
+    expect(goalsRes.status).toBe(200);
+    expect(await goalsRes.json()).toEqual([{ id: 'g1', title: 'Land a role', actions: [] }]);
+
+    const putGoal = await fetch(`${base}/goals`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'Ship OS' }),
+    });
+    expect(putGoal.status).toBe(200);
+    expect(await putGoal.json()).toMatchObject({ title: 'Ship OS' });
+
+    const putAction = await fetch(`${base}/actions`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ goalId: 'g1', title: 'Author tree', status: 'active' }),
+    });
+    expect(putAction.status).toBe(200);
+    expect(await putAction.json()).toMatchObject({ goalId: 'g1', title: 'Author tree' });
+
+    const putMicro = await fetch(`${base}/microactions`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ actionId: 'a1', title: 'Add form', status: 'open' }),
+    });
+    expect(putMicro.status).toBe(200);
+    expect(await putMicro.json()).toMatchObject({ actionId: 'a1', title: 'Add form' });
+  });
+
+  it('maps Weekly Plan routes onto the facade (#35)', async () => {
+    const agent = fakeFacade();
+    const started = await createAgentHttpServer({
+      agent,
+      host: '127.0.0.1',
+      port: 0,
+    });
+    server = started.server;
+    const { port } = started;
+    const base = `http://127.0.0.1:${port}`;
+
+    const getRes = await fetch(`${base}/weekly-plan`);
+    expect(getRes.status).toBe(200);
+    expect(await getRes.json()).toMatchObject({ goalId: 'g1', committed: false });
+
+    const proposeRes = await fetch(`${base}/weekly-plan/propose`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ goalId: 'g1' }),
+    });
+    expect(proposeRes.status).toBe(200);
+    expect(await proposeRes.json()).toMatchObject({ goalId: 'g1' });
+
+    const editRes = await fetch(`${base}/weekly-plan`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ actions: [{ title: 'Edited', microactions: [{ title: 'Slice' }] }] }),
+    });
+    expect(editRes.status).toBe(200);
+    expect(await editRes.json()).toMatchObject({ actions: [{ title: 'Edited' }] });
+
+    const acceptRes = await fetch(`${base}/weekly-plan/accept`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(acceptRes.status).toBe(200);
+    expect(await acceptRes.json()).toMatchObject({ committed: true });
+
+    const scheduleRes = await fetch(`${base}/schedule-microaction`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ microactionId: 'ma1', date: '2026-11-16' }),
+    });
+    expect(scheduleRes.status).toBe(200);
+    expect(await scheduleRes.json()).toMatchObject({
+      date: '2026-11-16',
+      status: 'proposed',
+    });
   });
 });

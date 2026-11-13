@@ -48,6 +48,21 @@ export function createLocalAgent(options = {}) {
           reason: 'local demo rank',
         }));
       },
+      proposeWeeklyPlan({ goal, wipRemaining }) {
+        if (wipRemaining <= 0) return { goalId: goal.id, actions: [] };
+        return {
+          goalId: goal.id,
+          actions: [
+            {
+              title: `Advance: ${goal.title}`,
+              microactions: [
+                { title: `Next slice for ${goal.title}` },
+                { title: `Second slice for ${goal.title}` },
+              ],
+            },
+          ],
+        };
+      },
     }),
     calendarRead,
     calendarWrite,

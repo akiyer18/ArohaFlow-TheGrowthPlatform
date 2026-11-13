@@ -27,6 +27,7 @@ import {
   upsertApplication,
   deleteApplication,
 } from './tools/applications.js';
+import { upsertGoal, upsertAction, upsertMicroaction } from './tools/goalsAuthoring.js';
 
 /**
  * Agent Service tool facade — primary seam for scheduler, MCP, and tests.
@@ -109,6 +110,10 @@ export function createAgentService(deps) {
       return scheduleMicroaction({ store, clock }, input);
     },
 
+    async getWeeklyPlanProposal() {
+      return store.getWeeklyPlanProposal();
+    },
+
     async upsertHabit(input) {
       return upsertHabit({ store }, input);
     },
@@ -119,6 +124,18 @@ export function createAgentService(deps) {
 
     async listGoals() {
       return store.listGoals();
+    },
+
+    async upsertGoal(input) {
+      return upsertGoal({ store }, input);
+    },
+
+    async upsertAction(input) {
+      return upsertAction({ store }, input);
+    },
+
+    async upsertMicroaction(input) {
+      return upsertMicroaction({ store }, input);
     },
 
     async listSenderAllowlist() {

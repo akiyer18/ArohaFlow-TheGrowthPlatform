@@ -74,6 +74,30 @@ export async function createAgentHttpServer(options) {
     if (method === 'GET' && pathname === '/goals') {
       return agent.listGoals();
     }
+    if (method === 'PUT' && pathname === '/goals') {
+      return agent.upsertGoal(body);
+    }
+    if (method === 'PUT' && pathname === '/actions') {
+      return agent.upsertAction(body);
+    }
+    if (method === 'PUT' && pathname === '/microactions') {
+      return agent.upsertMicroaction(body);
+    }
+    if (method === 'GET' && pathname === '/weekly-plan') {
+      return agent.getWeeklyPlanProposal();
+    }
+    if (method === 'POST' && pathname === '/weekly-plan/propose') {
+      return agent.proposeWeeklyPlan(body);
+    }
+    if (method === 'PUT' && pathname === '/weekly-plan') {
+      return agent.editWeeklyPlan(body);
+    }
+    if (method === 'POST' && pathname === '/weekly-plan/accept') {
+      return agent.acceptWeeklyPlan(body ?? {});
+    }
+    if (method === 'POST' && pathname === '/schedule-microaction') {
+      return agent.scheduleMicroaction(body);
+    }
     if (method === 'GET' && pathname === '/allowlist') {
       return agent.listSenderAllowlist();
     }

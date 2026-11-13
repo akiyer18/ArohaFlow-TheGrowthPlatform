@@ -46,6 +46,7 @@ function RegionState({ status, emptyLabel, errorLabel, children }) {
 function completionLabel(entry) {
   if (entry.summary) return entry.summary;
   if (entry.type === 'plan_ready') return `Plan-ready · ${entry.points} pts`;
+  if (entry.type === 'overachievement') return `Overachievement · ${entry.points} pts`;
   return `${entry.type} · ${entry.points} pts`;
 }
 

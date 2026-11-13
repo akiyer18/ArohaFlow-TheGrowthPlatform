@@ -1,8 +1,24 @@
+import { DayPlanStatus } from '../domain/statuses.js';
 import { creditStreakIfTargetMet } from './streak.js';
 
 const HABIT_POINTS = 10;
 const MICROACTION_POINTS = 20;
+const OVERACHIEVEMENT_POINTS = 20;
 const ACTION_POINTS = 100;
+
+/** Work-window end aligned with Fixed Block rhythm (UTC). */
+function workWindowEndMs(dateKey) {
+  return Date.parse(`${dateKey}T18:00:00.000Z`);
+}
+
+function plannedMicroactionIds(dayPlan) {
+  if (!dayPlan || dayPlan.status !== DayPlanStatus.LOCKED) return new Set();
+  return new Set(
+    (dayPlan.blocks || [])
+      .map((b) => b.microactionId)
+      .filter(Boolean),
+  );
+}
 
 /**
  * @param {{ store: object, clock: { todayDateKey(): string, now(): Date } }} deps
@@ -44,10 +60,34 @@ export async function completeMicroaction(deps, input) {
   if (result.alreadyComplete) {
     return { awarded: 0, dailyPoints: await store.getDailyPoints(dateKey) };
   }
+
+  const dayPlan = await store.getDayPlan(dateKey);
+  const planned = plannedMicroactionIds(dayPlan);
+  const locked = dayPlan?.status === DayPlanStatus.LOCKED;
+  const isSurplus = locked && !planned.has(input.microactionId);
+  const at = clock.now();
+  const beforeWorkEnd = at.getTime() < workWindowEndMs(dateKey);
+
+  if (isSurplus) {
+    // Surplus beyond Locked plan: Overachievement only before 18:00.
+    if (!beforeWorkEnd) {
+      return { awarded: 0, dailyPoints: await store.getDailyPoints(dateKey) };
+    }
+    await store.appendCompletion(dateKey, {
+      type: 'overachievement',
+      points: OVERACHIEVEMENT_POINTS,
+      at: at.toISOString(),
+      microactionId: input.microactionId,
+    });
+    const dailyPoints = await store.addDailyPoints(dateKey, OVERACHIEVEMENT_POINTS);
+    await creditStreakIfTargetMet(deps, dateKey);
+    return { awarded: OVERACHIEVEMENT_POINTS, dailyPoints };
+  }
+
   await store.appendCompletion(dateKey, {
     type: 'microaction',
     points: MICROACTION_POINTS,
-    at: clock.now().toISOString(),
+    at: at.toISOString(),
     microactionId: input.microactionId,
   });
   const dailyPoints = await store.addDailyPoints(dateKey, MICROACTION_POINTS);

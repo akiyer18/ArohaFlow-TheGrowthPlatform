@@ -53,12 +53,16 @@ Opt-in write of a Day Plan Block / Microaction onto the dedicated ArohaFlow Goog
 _Avoid_: sync (sync is read of external Calendar Events; publish is write of plan Blocks)
 
 **Completion**:
-The only event that awards Daily Points: a Habit Check-in confirmed, a Microaction marked done, an Action closed as done, or a Plan-ready Completion. Time spent without Completion awards nothing.
+The only event that awards Daily Points: a Habit Check-in confirmed, a Microaction marked done, an Action closed as done, a Plan-ready Completion, or an Overachievement Completion. Time spent without Completion awards nothing.
 _Avoid_: progress credit, partial points, time-box expiry reward
 
 **Plan-ready Completion**:
 A Completion granted at the start of a day when the user locked that day’s Day Plan the evening before (Intention + Blocks committed). Worth 10 Daily Points (ADR-0003). Absent lock ⇒ no Plan-ready Completion that day.
 _Avoid_: show-up bonus, planning XP, time-credit
+
+**Overachievement Completion**:
+A Completion for surplus finished Microactions beyond the Locked Day Plan’s planned set. Awards Daily Points only when completed before 18:00 (work-window end); at or after 18:00 the Microaction may still complete but grants no Overachievement points. Planned Completions keep normal weights at any hour (ADR-0002 / ADR-0003).
+_Avoid_: overtime bonus, time-in-seat points
 
 **Intention**:
 One sentence stating the day’s purpose, written when locking the Day Plan. Read-only on Today until Unlock → edit → re-lock.

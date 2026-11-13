@@ -9,7 +9,8 @@ Background tool facade for ArohaFlow (scheduler + MCP share this interface).
 - `syncCalendar`
 - `proposeDayPlan`
 - `proposeWeeklyPlan` (LLM candidates; not auto-committed)
-- `editWeeklyPlan` / `acceptWeeklyPlan` / `scheduleMicroaction` (candidates → Goals → Day Plan; no auto-lock)
+- `editWeeklyPlan` / `acceptWeeklyPlan` / `scheduleMicroaction` / `getWeeklyPlanProposal` (candidates → Goals → Day Plan; no auto-lock; max 5 Microactions/day)
+- `upsertGoal` / `upsertAction` / `upsertMicroaction` (Goals authoring; max 3 Active Actions)
 - `upsertHabit` / `listHabits` / `listCalendarView` (schedule + time anchor; habit consistency skips unscheduled days)
 - `assessDayPlanOvercommit` (Flexible Blocks vs work-window)
 - `lockDayPlan` (optional Intention; records `lockedAt`; requires `acknowledgeOvercommit` when overcommitted)
@@ -36,7 +37,13 @@ Facade methods `runMorningCadence` / `runEveningCadence` own the cadence; `creat
 
 ## HTTP bridge (OS UI)
 
-`npm run agent:start` also serves a **loopback-only** JSON API for the Vite OS shell (`127.0.0.1:8787` by default). Set in `.env.agent`:
+Daily driver (Agent HTTP + Vite together):
+
+```bash
+npm run dev:os
+```
+
+`npm run agent:start` alone also serves a **loopback-only** JSON API for the Vite OS shell (`127.0.0.1:8787` by default). Set in `.env.agent`:
 
 ```bash
 AROHAFLOW_AGENT_HTTP_HOST=127.0.0.1
@@ -44,13 +51,13 @@ AROHAFLOW_AGENT_HTTP_PORT=8787
 AROHAFLOW_AGENT_HTTP_CORS=http://localhost:5173
 ```
 
-In the Vite `.env`:
+In the Vite `.env` (documented in `.env.example`; never put service-role keys in `VITE_*`):
 
 ```bash
 VITE_AGENT_HTTP_URL=http://127.0.0.1:8787
 ```
 
-Routes map onto facade methods (`/today`, `/calendar-view`, `/goals`, `/habits`, `/applications`, `/allowlist`, lock/complete helpers). Non-loopback bind is rejected. Without `VITE_AGENT_HTTP_URL`, the OS UI keeps portfolio fixtures.
+Routes map onto facade methods (`/today`, `/calendar-view`, `/goals`, `/actions`, `/microactions`, `/weekly-plan`, `/habits`, `/applications`, `/allowlist`, lock/complete/schedule helpers). Non-loopback bind is rejected. Without `VITE_AGENT_HTTP_URL`, the OS UI keeps portfolio fixtures.
 
 ## MCP
 

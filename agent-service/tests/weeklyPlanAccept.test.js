@@ -103,6 +103,44 @@ describe('Weekly Plan accept / edit / schedule (#27)', () => {
     expect(lockedToday).toBeNull();
   });
 
+  it('refuses scheduling a sixth Microaction onto a Day Plan', async () => {
+    const clock = createFixedClock(new Date('2026-11-14T10:00:00.000Z'));
+    const store = createMemoryStore();
+    await store.seedGoals([
+      {
+        id: 'g1',
+        title: 'Land a platform role',
+        actions: [
+          {
+            id: 'a1',
+            title: 'Batch',
+            status: ActionStatus.ACTIVE,
+            microactions: Array.from({ length: 6 }, (_, i) => ({
+              id: `ma${i + 1}`,
+              title: `Slice ${i + 1}`,
+              status: MicroactionStatus.OPEN,
+            })),
+          },
+        ],
+      },
+    ]);
+    const agent = createAgentService({ clock, store, llm: llmWithSample() });
+
+    for (let i = 1; i <= 5; i += 1) {
+      await agent.scheduleMicroaction({
+        microactionId: `ma${i}`,
+        date: '2026-11-16',
+      });
+    }
+
+    await expect(
+      agent.scheduleMicroaction({
+        microactionId: 'ma6',
+        date: '2026-11-16',
+      }),
+    ).rejects.toThrow(/Max 5 Microactions/i);
+  });
+
   it('scheduling onto today as PROPOSED does not expose next Microaction until Locked', async () => {
     const clock = createFixedClock(new Date('2026-11-14T10:00:00.000Z'));
     const store = createMemoryStore();
