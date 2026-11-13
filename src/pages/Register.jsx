@@ -41,7 +41,7 @@ const Register = () => {
           setSuccess(result.message);
         } else {
           // Direct login (no email confirmation required)
-          navigate('/dashboard');
+          navigate('/today');
         }
       } else {
         setError(result.error || 'Failed to register');

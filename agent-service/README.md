@@ -9,7 +9,8 @@ Background tool facade for ArohaFlow (scheduler + MCP share this interface).
 - `syncCalendar`
 - `proposeDayPlan`
 - `proposeWeeklyPlan` (LLM candidates; not auto-committed)
-- `lockDayPlan` (optional Intention; records `lockedAt`)
+- `assessDayPlanOvercommit` (Flexible Blocks vs work-window)
+- `lockDayPlan` (optional Intention; records `lockedAt`; requires `acknowledgeOvercommit` when overcommitted)
 - `unlockDayPlan` (retracts Calendar Publish on Unlock)
 - `editDayPlan`
 - `startMicroaction` / `parkMicroaction` (one Active Microaction)

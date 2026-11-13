@@ -3,8 +3,12 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const PrivateRoute = ({ children }) => {
-  const { user } = useAuth();
-  
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center text-app-text-muted">Loading…</div>;
+  }
+
   return user ? children : <Navigate to="/login" replace />;
 };
 

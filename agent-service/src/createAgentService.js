@@ -15,6 +15,7 @@ import { runMorningCadence, runEveningCadence } from './tools/cadence.js';
 import { DayPlanStatus } from './domain/statuses.js';
 import { ensurePlanReadyCompletion } from './tools/planReady.js';
 import { proposeWeeklyPlan } from './tools/proposeWeeklyPlan.js';
+import { assessDayPlanOvercommit } from './tools/overcommit.js';
 
 /**
  * Agent Service tool facade — primary seam for scheduler, MCP, and tests.
@@ -79,6 +80,10 @@ export function createAgentService(deps) {
     async proposeWeeklyPlan(input) {
       if (!llm) throw new Error('LLM port required for propose_weekly_plan');
       return proposeWeeklyPlan({ store, llm, clock }, input);
+    },
+
+    async assessDayPlanOvercommit(input) {
+      return assessDayPlanOvercommit({ store }, input);
     },
 
     async lockDayPlan(input) {

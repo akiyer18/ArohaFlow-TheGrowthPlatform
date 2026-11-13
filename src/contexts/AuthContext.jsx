@@ -50,6 +50,19 @@ export const AuthProvider = ({ children }) => {
 
   const getInitialSession = async () => {
     try {
+      // Local + ?hallmark=1 seeds a session so Hallmark render can screenshot /today.
+      if (
+        isLocalMode &&
+        import.meta.env.DEV &&
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('hallmark') === '1'
+      ) {
+        await supabase.auth.signInWithPassword({
+          email: 'hallmark@local.dev',
+          password: 'hallmark',
+        });
+      }
+
       const { data: { session }, error } = await supabase.auth.getSession();
       
       if (error) {
