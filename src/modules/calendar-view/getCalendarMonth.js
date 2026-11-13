@@ -1,4 +1,4 @@
-import { CALENDAR_VIEW_FIXTURE } from '../../os/fixtures/calendarFixture.js';
+import { CALENDAR_VIEW_FIXTURE } from './calendarFixture.js';
 
 /**
  * Calendar View read module — small interface for the month surface.

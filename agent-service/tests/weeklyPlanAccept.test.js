@@ -102,4 +102,23 @@ describe('Weekly Plan accept / edit / schedule (#27)', () => {
     const lockedToday = await store.getDayPlan(clock.todayDateKey());
     expect(lockedToday).toBeNull();
   });
+
+  it('scheduling onto today as PROPOSED does not expose next Microaction until Locked', async () => {
+    const clock = createFixedClock(new Date('2026-11-14T10:00:00.000Z'));
+    const store = createMemoryStore();
+    const agent = createAgentService({ clock, store, llm: llmWithSample() });
+    await proposeSample(agent, store);
+    const accepted = await agent.acceptWeeklyPlan();
+    const microId = accepted.actions[0].microactions[0].id;
+
+    await agent.scheduleMicroaction({
+      microactionId: microId,
+      date: clock.todayDateKey(),
+    });
+
+    const today = await agent.listToday();
+    expect(today.dayPlan.status).toBe(DayPlanStatus.PROPOSED);
+    expect(today.nextMicroaction).toBeNull();
+    expect(today.intention).toBeNull();
+  });
 });

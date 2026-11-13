@@ -49,13 +49,17 @@ export function createAgentService(deps) {
             intention: null,
           };
 
-      const activeMicroaction = await store.getActiveMicroaction();
-      const nextMicroaction = await resolveNextMicroaction({ dayPlan, store });
+      // Today execution board only runs Locked / committed content (#27 / #18).
+      const committed = dayPlan.status === DayPlanStatus.LOCKED;
+      const activeMicroaction = committed ? await store.getActiveMicroaction() : null;
+      const nextMicroaction = committed
+        ? await resolveNextMicroaction({ dayPlan, store })
+        : null;
 
       return {
         date,
         dayPlan,
-        intention: dayPlan.intention ?? null,
+        intention: committed ? (dayPlan.intention ?? null) : null,
         activeMicroaction,
         nextMicroaction,
         emailDigest: await store.getEmailDigest(date),
