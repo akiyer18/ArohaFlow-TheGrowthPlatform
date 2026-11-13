@@ -3,3 +3,7 @@
 We considered LLM few-shot proposals for Day Plans and LLM scoring for Important Email. For a solo personal OS, Day Plan proposals must stay cheap and explainable. **Decision:** v1 proposes Day Plans with deterministic rules (Fixed Blocks + calendar + open Microactions). Email Digest uses noise rules + Sender Allowlist, then an **LLM port for ranking** remaining candidates (injectable fake in unit tests; quality via eval harness). Day Plan path stays LLM-free. Every accept/edit of a Day Plan is logged so a contextual bandit can be introduced later; **do not enable a bandit until ≥20 weekdays** with a confirmed plan and at least some accepts/edits, then revisit in a new ADR.
 
 **Google scopes (amended):** Gmail stays read-only. Calendar is read for sync; **limited write** is allowed only to create/update events that represent opted-in Microactions / Day Plan Blocks for plan lock-in (see ADR on plan lock when accepted). UI never holds Google tokens.
+
+## Amendment — Weekly Plan proposals (Today execution board — #19)
+
+**Weekly Plan** (Goal → Action → Microaction candidates for Saturday grilling) **uses the LLM port**. Proposals are candidates only; the user accepts, edits, and schedules. This does **not** change the Day Plan propose path: morning/evening Day Plan layout remains deterministic rules only. Injectable LLM fakes cover unit tests; any quality bar for Weekly Plan proposals can get its own eval later without reopening Day Plan rules.
