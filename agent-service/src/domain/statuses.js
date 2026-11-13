@@ -15,6 +15,8 @@ export const ActionStatus = Object.freeze({
 /** Microaction lifecycle */
 export const MicroactionStatus = Object.freeze({
   OPEN: 'open',
+  ACTIVE: 'active',
+  PARKED: 'parked',
   COMPLETED: 'completed',
 });
 

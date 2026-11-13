@@ -149,6 +149,7 @@ describe('unlock / edit Day Plan change-log', () => {
 
     const today = await agent.listToday();
     expect(today.dayPlan.status).toBe(DayPlanStatus.LOCKED);
+    // Same-day Locked plan (no prior-evening lockedAt) ⇒ Habit 10 + Microaction 20 only
     expect(today.dailyPoints).toBe(30);
     expect(today.habitCheckIns).toHaveLength(1);
   });

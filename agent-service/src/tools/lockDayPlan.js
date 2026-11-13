@@ -3,7 +3,7 @@ import { AROHAFLOW_CALENDAR_ID, publishExternalKey } from '../domain/arohaflowCa
 
 /**
  * @param {{ store: object, calendarWrite: object, clock: { now(): Date } }} deps
- * @param {{ date: string, confirmed: boolean }} input
+ * @param {{ date: string, confirmed: boolean, intention?: string | null }} input
  */
 export async function lockDayPlan(deps, input) {
   const { store, calendarWrite, clock } = deps;
@@ -32,7 +32,13 @@ export async function lockDayPlan(deps, input) {
     }
   }
 
-  const locked = { ...plan, status: DayPlanStatus.LOCKED };
+  const intention =
+    input.intention !== undefined
+      ? input.intention
+      : (plan.intention ?? null);
+
+  const lockedAt = clock.now().toISOString();
+  const locked = { ...plan, status: DayPlanStatus.LOCKED, intention, lockedAt };
   await store.saveDayPlan(locked);
   await store.appendDayPlanChange({
     date: input.date,

@@ -16,10 +16,17 @@ export async function logHabitCheckIn(deps, input) {
     return { awarded: 0, dailyPoints: await store.getDailyPoints(dateKey) };
   }
 
+  const at = clock.now().toISOString();
   await store.saveHabitCheckIn(dateKey, {
     habitId: input.habitId,
     label: input.label,
-    at: clock.now().toISOString(),
+    at,
+  });
+  await store.appendCompletion(dateKey, {
+    type: 'habit_check_in',
+    points: HABIT_POINTS,
+    at,
+    habitId: input.habitId,
   });
   const dailyPoints = await store.addDailyPoints(dateKey, HABIT_POINTS);
   await creditStreakIfTargetMet(deps, dateKey);
@@ -37,6 +44,12 @@ export async function completeMicroaction(deps, input) {
   if (result.alreadyComplete) {
     return { awarded: 0, dailyPoints: await store.getDailyPoints(dateKey) };
   }
+  await store.appendCompletion(dateKey, {
+    type: 'microaction',
+    points: MICROACTION_POINTS,
+    at: clock.now().toISOString(),
+    microactionId: input.microactionId,
+  });
   const dailyPoints = await store.addDailyPoints(dateKey, MICROACTION_POINTS);
   await creditStreakIfTargetMet(deps, dateKey);
   return { awarded: MICROACTION_POINTS, dailyPoints };
@@ -57,6 +70,12 @@ export async function completeAction(deps, input) {
       actionStatus: result.action.status,
     };
   }
+  await store.appendCompletion(dateKey, {
+    type: 'action',
+    points: ACTION_POINTS,
+    at: clock.now().toISOString(),
+    actionId: input.actionId,
+  });
   const dailyPoints = await store.addDailyPoints(dateKey, ACTION_POINTS);
   await creditStreakIfTargetMet(deps, dateKey);
   return {

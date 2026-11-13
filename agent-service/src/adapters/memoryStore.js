@@ -6,6 +6,7 @@ export function createMemoryStore() {
     emailDigestByDate: new Map(),
     calendarEvents: new Map(),
     dailyPointsByDate: new Map(),
+    completionsByDate: new Map(),
     streak: { count: 0, freezeRemainingThisWeek: 1, freezeWeekKey: null },
     streakDaysMet: new Set(),
     streakDaysResolved: new Set(),
@@ -13,6 +14,7 @@ export function createMemoryStore() {
     habitCheckInsByDate: new Map(),
     senderAllowlist: [],
     goals: [],
+    weeklyPlanProposal: null,
     dayPlanChangeLog: [],
   };
 
@@ -60,6 +62,15 @@ export function createMemoryStore() {
       const next = (state.dailyPointsByDate.get(dateKey) ?? 0) + amount;
       state.dailyPointsByDate.set(dateKey, next);
       return next;
+    },
+    async listCompletions(dateKey) {
+      return [...(state.completionsByDate.get(dateKey) ?? [])];
+    },
+    async appendCompletion(dateKey, completion) {
+      const list = state.completionsByDate.get(dateKey) ?? [];
+      list.push({ ...completion });
+      state.completionsByDate.set(dateKey, list);
+      return list;
     },
     async getDailyPointTarget() {
       return 100;
@@ -138,13 +149,71 @@ export function createMemoryStore() {
     async seedGoals(goals) {
       state.goals = structuredClone(goals);
     },
+    async listGoals() {
+      return structuredClone(state.goals);
+    },
+    async saveWeeklyPlanProposal(proposal) {
+      state.weeklyPlanProposal = structuredClone(proposal);
+    },
+    async getWeeklyPlanProposal() {
+      return state.weeklyPlanProposal ? structuredClone(state.weeklyPlanProposal) : null;
+    },
+    async findMicroaction(microactionId) {
+      for (const goal of state.goals) {
+        for (const action of goal.actions || []) {
+          for (const micro of action.microactions || []) {
+            if (micro.id === microactionId) {
+              return {
+                micro,
+                action,
+                goal,
+                view: { ...micro, actionId: action.id, goalId: goal.id },
+              };
+            }
+          }
+        }
+      }
+      return null;
+    },
+    async getMicroaction(microactionId) {
+      const found = await this.findMicroaction(microactionId);
+      return found ? found.view : null;
+    },
+    async getActiveMicroaction() {
+      for (const goal of state.goals) {
+        for (const action of goal.actions || []) {
+          for (const micro of action.microactions || []) {
+            if (micro.status === MicroactionStatus.ACTIVE) {
+              return { ...micro, actionId: action.id, goalId: goal.id };
+            }
+          }
+        }
+      }
+      return null;
+    },
+    async setMicroactionStatus(microactionId, status, extra = {}) {
+      const found = await this.findMicroaction(microactionId);
+      if (!found) throw new Error(`Microaction not found: ${microactionId}`);
+      found.micro.status = status;
+      if (extra.parkReason !== undefined) found.micro.parkReason = extra.parkReason;
+      if (extra.parkedAt !== undefined) found.micro.parkedAt = extra.parkedAt;
+      if (status === MicroactionStatus.ACTIVE) {
+        delete found.micro.parkReason;
+        delete found.micro.parkedAt;
+      }
+      return { ...found.micro, actionId: found.action.id, goalId: found.goal.id };
+    },
     async listOpenMicroactions() {
       const open = [];
       for (const goal of state.goals) {
         for (const action of goal.actions || []) {
           if (action.status !== ActionStatus.ACTIVE) continue;
           for (const micro of action.microactions || []) {
-            if (micro.status === MicroactionStatus.OPEN) {
+            if (
+              micro.status === MicroactionStatus.OPEN ||
+              micro.status === MicroactionStatus.ACTIVE ||
+              micro.status === MicroactionStatus.PARKED
+            ) {
               open.push({
                 ...micro,
                 actionId: action.id,
