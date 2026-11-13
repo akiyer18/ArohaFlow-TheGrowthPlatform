@@ -1,26 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { loadCalendarView } from './loadToday';
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function monthLabel(month) {
-  const [y, m] = month.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleString([], {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
-function daysInMonth(month) {
-  const [y, m] = month.split('-').map(Number);
-  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  return Array.from({ length: last }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`);
-}
-
-function weekdayUtc(dateKey) {
-  return new Date(`${dateKey}T12:00:00.000Z`).getUTCDay();
-}
+import {
+  getCalendarMonth,
+  WEEKDAYS,
+  monthLabel,
+  buildMonthCells,
+  indexByDate,
+} from '../modules/calendar-view';
 
 function statusClass(status) {
   if (status === 'done') return 'os-heat-done';
@@ -38,7 +23,7 @@ export default function CalendarViewPage() {
     let cancelled = false;
     (async () => {
       try {
-        const payload = await loadCalendarView();
+        const payload = await getCalendarMonth();
         if (cancelled) return;
         setData(payload);
         setHabitFilter(payload.habits[0]?.id ?? 'gym');
@@ -52,14 +37,7 @@ export default function CalendarViewPage() {
     };
   }, []);
 
-  const calendarCells = useMemo(() => {
-    if (!data) return [];
-    const dates = daysInMonth(data.month);
-    const lead = weekdayUtc(dates[0]);
-    const cells = Array.from({ length: lead }, () => null);
-    for (const date of dates) cells.push(date);
-    return cells;
-  }, [data]);
+  const calendarCells = useMemo(() => (data ? buildMonthCells(data.month) : []), [data]);
 
   const heatByDate = useMemo(() => {
     const map = new Map();
@@ -71,18 +49,10 @@ export default function CalendarViewPage() {
     return map;
   }, [data, habitFilter]);
 
-  const eventsByDate = useMemo(() => {
-    const map = new Map();
-    if (!data) return map;
-    for (const event of data.events ?? []) {
-      const date = event.startAt?.slice(0, 10);
-      if (!date) continue;
-      const list = map.get(date) ?? [];
-      list.push(event);
-      map.set(date, list);
-    }
-    return map;
-  }, [data]);
+  const eventsByDate = useMemo(
+    () => indexByDate(data?.events, (event) => event.startAt?.slice(0, 10)),
+    [data],
+  );
 
   const blocksByDate = useMemo(() => {
     const map = new Map();
@@ -183,9 +153,7 @@ export default function CalendarViewPage() {
                     {activeHabit && heat?.scheduled ? (
                       <span className="os-cal-anchor">{activeHabit.timeAnchor}</span>
                     ) : null}
-                    {events[0] ? (
-                      <span className="os-cal-chip">{events[0].title}</span>
-                    ) : null}
+                    {events[0] ? <span className="os-cal-chip">{events[0].title}</span> : null}
                     {blocks[0] ? (
                       <span className="os-cal-chip os-cal-chip-plan">{blocks[0].title}</span>
                     ) : null}

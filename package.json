@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "server": "node server/index.js",
-    "agent:test": "vitest run agent-service/tests",
+    "agent:test": "vitest run agent-service/tests src/modules/calendar-view",
     "agent:eval:digest": "vitest run agent-service/eval/digest && node agent-service/eval/digest/cli.js",
     "agent:cadence": "node agent-service/src/runCadence.js",
     "agent:start": "node agent-service/src/startAgent.js",

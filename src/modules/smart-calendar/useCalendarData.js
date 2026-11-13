@@ -15,8 +15,10 @@ import { toDateKey, getMonthRange } from '../../utils/date';
 export { toDateKey, getMonthRange };
 
 /**
- * Unified calendar data hook.
- * Fetches tasks, habits + logs, meal plans, events for a month in parallel.
+ * Legacy Smart Calendar fan-in (tasks/meals/effort/knowledge).
+ * OS Calendar View uses `src/modules/calendar-view` (`getCalendarMonth`) instead —
+ * glossary Calendar Events + Day Plan Blocks + habit heatmap (#4).
+ *
  * Returns: { dataByDay, habits, loading, error, refetch }
  * dataByDay[dateKey] = { tasks, habitsCompleted, habitsPending, meals, events, productivityScore }
  */

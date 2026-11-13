@@ -1,0 +1,3 @@
+# Calendar View is a deep read module
+
+Legacy Smart Calendar aggregated ~7 services through `useCalendarData`, so the month UI learned the full fan-in. Day Plan Blocks and habit schedule anchors lived elsewhere. **Decision:** deepen a **Calendar View** module (`src/modules/calendar-view`) with a small read interface — `getCalendarMonth({ month })` returns Calendar Events, Day Plan Blocks, habit anchors, and heatmap/consistency cells (glossary shape, aligned with Agent Service `listCalendarView`). Plan lock and Calendar Publish stay on the Agent Service tool facade (ADR-0005). The OS Calendar page is a thin client of this module. Legacy `smart-calendar/*` remains in-repo as Legacy, not the primary Calendar destination.
