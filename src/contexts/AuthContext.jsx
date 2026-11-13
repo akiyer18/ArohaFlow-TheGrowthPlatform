@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { isLocalMode, supabase } from '../config/supabase';
 import { dataService } from '../services/data/DataService';
+import { createDefaultAuthSession } from '../modules/auth';
 
 const AuthContext = createContext();
 
@@ -15,90 +16,55 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const auth = useMemo(() => createDefaultAuthSession(), []);
 
   useEffect(() => {
-    // Get initial session
-    getInitialSession();
+    let cancelled = false;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        
-        if (session?.user) {
-          // User is signed in
-          setUser({
-            id: session.user.id,
-            email: session.user.email,
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
-            createdAt: session.user.created_at,
-            emailConfirmed: session.user.email_confirmed_at ? true : false
+    (async () => {
+      try {
+        // Local + ?hallmark=1 seeds a session so Hallmark render can screenshot /today.
+        if (
+          isLocalMode &&
+          import.meta.env.DEV &&
+          typeof window !== 'undefined' &&
+          new URLSearchParams(window.location.search).get('hallmark') === '1'
+        ) {
+          await supabase.auth.signInWithPassword({
+            email: 'hallmark@local.dev',
+            password: 'hallmark',
           });
-        } else {
-          // User is signed out
-          setUser(null);
         }
-        
-        setLoading(false);
+
+        const current = await auth.getCurrentUser();
+        if (!cancelled) setUser(current);
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    );
+    })();
+
+    const unsubscribe = auth.subscribeSession((nextUser) => {
+      setUser(nextUser);
+      setLoading(false);
+    });
 
     return () => {
-      subscription?.unsubscribe();
+      cancelled = true;
+      unsubscribe();
     };
-  }, []);
-
-  const getInitialSession = async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Error getting session:', error);
-        setLoading(false);
-        return;
-      }
-
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
-          createdAt: session.user.created_at,
-          emailConfirmed: session.user.email_confirmed_at ? true : false
-        });
-      }
-    } catch (error) {
-      console.error('Error in getInitialSession:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [auth]);
 
   const login = async (email, password) => {
     try {
       setLoading(true);
-
-      const { data, error } = await dataService.login(email, password);
-
-      if (error) {
-        console.error('Login error:', error);
-        return { 
-          success: false, 
-          error: error.message || 'Login failed. Please check your credentials.' 
-        };
-      }
-
-      if (data.user) {
-        // User will be set by the auth state change listener
-        return { success: true };
-      }
-
-      return { success: false, error: 'Login failed. Please try again.' };
+      return await auth.login(email, password);
     } catch (error) {
       console.error('Login exception:', error);
-      return { 
-        success: false, 
-        error: 'An unexpected error occurred. Please try again.' 
+      return {
+        success: false,
+        error: 'An unexpected error occurred. Please try again.',
       };
     } finally {
       setLoading(false);
@@ -109,7 +75,6 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      // In local mode, auth is intentionally permissive for fast offline usage.
       if (!isLocalMode && password !== confirmPassword) {
         return { success: false, error: 'Passwords do not match' };
       }
@@ -124,31 +89,28 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         console.error('Registration error:', error);
-        return { 
-          success: false, 
-          error: error.message || 'Registration failed. Please try again.' 
+        return {
+          success: false,
+          error: error.message || 'Registration failed. Please try again.',
         };
       }
 
       if (data.user) {
-        // Check if email confirmation is required
         if (!data.session) {
-          return { 
-            success: true, 
-            message: 'Registration successful! Please check your email to confirm your account.' 
+          return {
+            success: true,
+            message: 'Registration successful! Please check your email to confirm your account.',
           };
         }
-        
-        // User will be set by the auth state change listener
         return { success: true };
       }
 
       return { success: false, error: 'Registration failed. Please try again.' };
     } catch (error) {
       console.error('Registration exception:', error);
-      return { 
-        success: false, 
-        error: 'An unexpected error occurred. Please try again.' 
+      return {
+        success: false,
+        error: 'An unexpected error occurred. Please try again.',
       };
     } finally {
       setLoading(false);
@@ -158,16 +120,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setLoading(true);
-
-      const { error } = await dataService.logout();
-      
-      if (error) {
-        console.error('Logout error:', error);
-        // Even if there's an error, we should clear the local user state
-      }
-      
-      // User will be set to null by the auth state change listener
-      return { success: true };
+      return await auth.logout();
     } catch (error) {
       console.error('Logout exception:', error);
       return { success: false, error: 'Logout failed. Please try again.' };
@@ -184,21 +137,21 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         console.error('Password reset error:', error);
-        return { 
-          success: false, 
-          error: error.message || 'Failed to send reset email. Please try again.' 
+        return {
+          success: false,
+          error: error.message || 'Failed to send reset email. Please try again.',
         };
       }
 
-      return { 
-        success: true, 
-        message: 'Password reset email sent! Please check your inbox.' 
+      return {
+        success: true,
+        message: 'Password reset email sent! Please check your inbox.',
       };
     } catch (error) {
       console.error('Password reset exception:', error);
-      return { 
-        success: false, 
-        error: 'An unexpected error occurred. Please try again.' 
+      return {
+        success: false,
+        error: 'An unexpected error occurred. Please try again.',
       };
     }
   };
@@ -206,23 +159,23 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (updates) => {
     try {
       const { data, error } = await supabase.auth.updateUser({
-        data: updates
+        data: updates,
       });
 
       if (error) {
         console.error('Profile update error:', error);
-        return { 
-          success: false, 
-          error: error.message || 'Failed to update profile. Please try again.' 
+        return {
+          success: false,
+          error: error.message || 'Failed to update profile. Please try again.',
         };
       }
 
       return { success: true, data };
     } catch (error) {
       console.error('Profile update exception:', error);
-      return { 
-        success: false, 
-        error: 'An unexpected error occurred. Please try again.' 
+      return {
+        success: false,
+        error: 'An unexpected error occurred. Please try again.',
       };
     }
   };
@@ -235,15 +188,9 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     updateProfile,
     loading,
-    // Helper to check if user is authenticated
     isAuthenticated: !!user,
-    // Helper to get user ID for database operations
     userId: user?.id || null,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-}; 
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

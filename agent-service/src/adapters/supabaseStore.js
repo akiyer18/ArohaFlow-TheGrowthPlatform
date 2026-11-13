@@ -79,7 +79,13 @@ export function createSupabaseStore(client) {
         .maybeSingle();
       throwIfError(error, 'getDayPlan');
       if (!data) return null;
-      return { date: data.date_key, status: data.status, blocks: data.blocks ?? [] };
+      return {
+        date: data.date_key,
+        status: data.status,
+        blocks: data.blocks ?? [],
+        intention: data.intention ?? null,
+        lockedAt: data.locked_at ?? null,
+      };
     },
 
     async saveDayPlan(plan) {
@@ -88,6 +94,8 @@ export function createSupabaseStore(client) {
           date_key: plan.date,
           status: plan.status,
           blocks: plan.blocks ?? [],
+          intention: plan.intention ?? null,
+          locked_at: plan.lockedAt ?? null,
         },
         { onConflict: 'date_key' },
       );
@@ -158,6 +166,33 @@ export function createSupabaseStore(client) {
         .upsert({ date_key: dateKey, points: next }, { onConflict: 'date_key' });
       throwIfError(error, 'addDailyPoints');
       return next;
+    },
+
+    async listCompletions(dateKey) {
+      const { data, error } = await client
+        .from('agent_completions')
+        .select('*')
+        .eq('date_key', dateKey)
+        .order('at', { ascending: true });
+      throwIfError(error, 'listCompletions');
+      return (data ?? []).map((row) => ({
+        type: row.type,
+        points: row.points,
+        at: row.at,
+        ...(row.meta && typeof row.meta === 'object' ? row.meta : {}),
+      }));
+    },
+
+    async appendCompletion(dateKey, completion) {
+      const { type, points, at, ...meta } = completion;
+      const { error } = await client.from('agent_completions').insert({
+        date_key: dateKey,
+        type,
+        points,
+        at,
+        meta,
+      });
+      throwIfError(error, 'appendCompletion');
     },
 
     async getDailyPointTarget() {
@@ -241,6 +276,31 @@ export function createSupabaseStore(client) {
       throwIfError(error, 'appendAgentActivity');
     },
 
+    async listHabits() {
+      const { data, error } = await client.from('agent_habits').select('*').order('id');
+      throwIfError(error, 'listHabits');
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        label: row.label,
+        scheduledDays: structuredClone(row.scheduled_days ?? []),
+        timeAnchor: row.time_anchor,
+      }));
+    },
+
+    async upsertHabit(habit) {
+      const { error } = await client.from('agent_habits').upsert(
+        {
+          id: habit.id,
+          label: habit.label,
+          scheduled_days: habit.scheduledDays,
+          time_anchor: habit.timeAnchor,
+        },
+        { onConflict: 'id' },
+      );
+      throwIfError(error, 'upsertHabit');
+      return structuredClone(habit);
+    },
+
     async getHabitCheckIns(dateKey) {
       const { data, error } = await client
         .from('agent_habit_checkins')
@@ -313,6 +373,28 @@ export function createSupabaseStore(client) {
       await saveGoalsTree(structuredClone(goals));
     },
 
+    async listGoals() {
+      return getGoalsTree();
+    },
+
+    async saveWeeklyPlanProposal(proposal) {
+      const { error } = await client.from('agent_weekly_plan_proposals').upsert(
+        { id: 'latest', payload: proposal },
+        { onConflict: 'id' },
+      );
+      throwIfError(error, 'saveWeeklyPlanProposal');
+    },
+
+    async getWeeklyPlanProposal() {
+      const { data, error } = await client
+        .from('agent_weekly_plan_proposals')
+        .select('*')
+        .eq('id', 'latest')
+        .maybeSingle();
+      throwIfError(error, 'getWeeklyPlanProposal');
+      return data?.payload ? structuredClone(data.payload) : null;
+    },
+
     async listOpenMicroactions() {
       const goals = await getGoalsTree();
       const open = [];
@@ -320,7 +402,11 @@ export function createSupabaseStore(client) {
         for (const action of goal.actions || []) {
           if (action.status !== ActionStatus.ACTIVE) continue;
           for (const micro of action.microactions || []) {
-            if (micro.status === MicroactionStatus.OPEN) {
+            if (
+              micro.status === MicroactionStatus.OPEN ||
+              micro.status === MicroactionStatus.ACTIVE ||
+              micro.status === MicroactionStatus.PARKED
+            ) {
               open.push({ ...micro, actionId: action.id, goalId: goal.id });
             }
           }
@@ -338,6 +424,56 @@ export function createSupabaseStore(client) {
         }
       }
       return active;
+    },
+
+    async getMicroaction(microactionId) {
+      const goals = await getGoalsTree();
+      for (const goal of goals) {
+        for (const action of goal.actions || []) {
+          for (const micro of action.microactions || []) {
+            if (micro.id === microactionId) {
+              return { ...micro, actionId: action.id, goalId: goal.id };
+            }
+          }
+        }
+      }
+      return null;
+    },
+
+    async getActiveMicroaction() {
+      const goals = await getGoalsTree();
+      for (const goal of goals) {
+        for (const action of goal.actions || []) {
+          for (const micro of action.microactions || []) {
+            if (micro.status === MicroactionStatus.ACTIVE) {
+              return { ...micro, actionId: action.id, goalId: goal.id };
+            }
+          }
+        }
+      }
+      return null;
+    },
+
+    async setMicroactionStatus(microactionId, status, extra = {}) {
+      const goals = await getGoalsTree();
+      for (const goal of goals) {
+        for (const action of goal.actions || []) {
+          for (const micro of action.microactions || []) {
+            if (micro.id === microactionId) {
+              micro.status = status;
+              if (extra.parkReason !== undefined) micro.parkReason = extra.parkReason;
+              if (extra.parkedAt !== undefined) micro.parkedAt = extra.parkedAt;
+              if (status === MicroactionStatus.ACTIVE) {
+                delete micro.parkReason;
+                delete micro.parkedAt;
+              }
+              await saveGoalsTree(goals);
+              return { ...micro, actionId: action.id, goalId: goal.id };
+            }
+          }
+        }
+      }
+      throw new Error(`Microaction not found: ${microactionId}`);
     },
 
     async completeMicroaction(microactionId) {

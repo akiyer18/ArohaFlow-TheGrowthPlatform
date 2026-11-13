@@ -5,8 +5,14 @@ CREATE TABLE IF NOT EXISTS agent_day_plans (
   date_key TEXT PRIMARY KEY,
   status TEXT NOT NULL,
   blocks JSONB NOT NULL DEFAULT '[]'::jsonb,
+  intention TEXT,
+  locked_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Additive for existing deployments (idempotent).
+ALTER TABLE agent_day_plans ADD COLUMN IF NOT EXISTS intention TEXT;
+ALTER TABLE agent_day_plans ADD COLUMN IF NOT EXISTS locked_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS agent_day_plan_changes (
   id BIGSERIAL PRIMARY KEY,
@@ -35,6 +41,16 @@ CREATE TABLE IF NOT EXISTS agent_daily_points (
   date_key TEXT PRIMARY KEY,
   points INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS agent_completions (
+  id BIGSERIAL PRIMARY KEY,
+  date_key TEXT NOT NULL,
+  type TEXT NOT NULL,
+  points INTEGER NOT NULL,
+  at TIMESTAMPTZ NOT NULL,
+  meta JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS idx_agent_completions_date ON agent_completions (date_key, at);
 
 CREATE TABLE IF NOT EXISTS agent_streak (
   id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -65,6 +81,13 @@ CREATE TABLE IF NOT EXISTS agent_habit_checkins (
   PRIMARY KEY (date_key, habit_id)
 );
 
+CREATE TABLE IF NOT EXISTS agent_habits (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  scheduled_days JSONB NOT NULL DEFAULT '[]'::jsonb,
+  time_anchor TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS agent_sender_allowlist (
   id TEXT PRIMARY KEY,
   entries JSONB NOT NULL DEFAULT '[]'::jsonb
@@ -73,6 +96,11 @@ CREATE TABLE IF NOT EXISTS agent_sender_allowlist (
 CREATE TABLE IF NOT EXISTS agent_goals (
   id TEXT PRIMARY KEY,
   payload JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS agent_weekly_plan_proposals (
+  id TEXT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
 INSERT INTO agent_streak (id, count, freeze_remaining_this_week, freeze_week_key)

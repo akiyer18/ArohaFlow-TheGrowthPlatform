@@ -4,13 +4,18 @@ Background tool facade for ArohaFlow (scheduler + MCP share this interface).
 
 ## Tools
 
-- `listToday`
+- `listToday` (Intention, Active/next Microaction, `pointsExplanation`, Plan-ready grant)
 - `buildEmailDigest`
 - `syncCalendar`
 - `proposeDayPlan`
-- `lockDayPlan`
+- `proposeWeeklyPlan` (LLM candidates; not auto-committed)
+- `editWeeklyPlan` / `acceptWeeklyPlan` / `scheduleMicroaction` (candidates → Goals → Day Plan; no auto-lock)
+- `upsertHabit` / `listHabits` / `listCalendarView` (schedule + time anchor; habit consistency skips unscheduled days)
+- `assessDayPlanOvercommit` (Flexible Blocks vs work-window)
+- `lockDayPlan` (optional Intention; records `lockedAt`; requires `acknowledgeOvercommit` when overcommitted)
 - `unlockDayPlan` (retracts Calendar Publish on Unlock)
 - `editDayPlan`
+- `startMicroaction` / `parkMicroaction` (one Active Microaction)
 - `logHabitCheckIn`
 - `completeMicroaction`
 - `completeAction`
@@ -41,7 +46,7 @@ Tools: `sync_calendar`, `build_email_digest`, `propose_day_plan`, `lock_day_plan
 
 ## Ports
 
-Clock, Store, Gmail (read-only), LLM (email rank), Calendar read, Calendar write (ArohaFlow calendar only).
+Clock, Store, Gmail (read-only), LLM (email rank + Weekly Plan propose), Calendar read, Calendar write (ArohaFlow calendar only).
 
 ### Store
 

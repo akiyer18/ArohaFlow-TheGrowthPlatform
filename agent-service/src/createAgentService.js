@@ -5,9 +5,23 @@ import { proposeDayPlan } from './tools/proposeDayPlan.js';
 import { lockDayPlan } from './tools/lockDayPlan.js';
 import { unlockDayPlan, editDayPlan } from './tools/dayPlanEdit.js';
 import { logHabitCheckIn, completeMicroaction, completeAction } from './tools/completions.js';
+import {
+  startMicroaction,
+  parkMicroaction,
+  resolveNextMicroaction,
+} from './tools/activeMicroaction.js';
 import { evaluateStreak } from './tools/streak.js';
 import { runMorningCadence, runEveningCadence } from './tools/cadence.js';
 import { DayPlanStatus } from './domain/statuses.js';
+import { ensurePlanReadyCompletion } from './tools/planReady.js';
+import { proposeWeeklyPlan } from './tools/proposeWeeklyPlan.js';
+import {
+  editWeeklyPlan,
+  acceptWeeklyPlan,
+  scheduleMicroaction,
+} from './tools/weeklyPlanAccept.js';
+import { upsertHabit, listHabits, listCalendarView } from './tools/habitCalendar.js';
+import { assessDayPlanOvercommit } from './tools/overcommit.js';
 
 /**
  * Agent Service tool facade — primary seam for scheduler, MCP, and tests.
@@ -23,19 +37,35 @@ export function createAgentService(deps) {
   const facade = {
     async listToday() {
       const date = clock.todayDateKey();
+      await ensurePlanReadyCompletion({ store, clock });
+
       const existingPlan = await store.getDayPlan(date);
-      const dayPlan = existingPlan ?? {
-        date,
-        status: DayPlanStatus.EMPTY,
-        blocks: [],
-      };
+      const dayPlan = existingPlan
+        ? { ...existingPlan, intention: existingPlan.intention ?? null }
+        : {
+            date,
+            status: DayPlanStatus.EMPTY,
+            blocks: [],
+            intention: null,
+          };
+
+      // Today execution board only runs Locked / committed content (#27 / #18).
+      const committed = dayPlan.status === DayPlanStatus.LOCKED;
+      const activeMicroaction = committed ? await store.getActiveMicroaction() : null;
+      const nextMicroaction = committed
+        ? await resolveNextMicroaction({ dayPlan, store })
+        : null;
 
       return {
         date,
         dayPlan,
+        intention: committed ? (dayPlan.intention ?? null) : null,
+        activeMicroaction,
+        nextMicroaction,
         emailDigest: await store.getEmailDigest(date),
         dailyPoints: await store.getDailyPoints(date),
         dailyPointTarget: await store.getDailyPointTarget(),
+        pointsExplanation: await store.listCompletions(date),
         streak: await store.getStreak(),
         agentActivity: await store.listAgentActivity(),
         habitCheckIns: await store.getHabitCheckIns(date),
@@ -57,6 +87,39 @@ export function createAgentService(deps) {
       return proposeDayPlan({ store, clock }, options);
     },
 
+    async proposeWeeklyPlan(input) {
+      if (!llm) throw new Error('LLM port required for propose_weekly_plan');
+      return proposeWeeklyPlan({ store, llm, clock }, input);
+    },
+
+    async editWeeklyPlan(input) {
+      return editWeeklyPlan({ store, clock }, input);
+    },
+
+    async acceptWeeklyPlan(input) {
+      return acceptWeeklyPlan({ store, clock }, input ?? {});
+    },
+
+    async scheduleMicroaction(input) {
+      return scheduleMicroaction({ store, clock }, input);
+    },
+
+    async upsertHabit(input) {
+      return upsertHabit({ store }, input);
+    },
+
+    async listHabits() {
+      return listHabits({ store });
+    },
+
+    async listCalendarView(input) {
+      return listCalendarView({ store, clock }, input);
+    },
+
+    async assessDayPlanOvercommit(input) {
+      return assessDayPlanOvercommit({ store }, input);
+    },
+
     async lockDayPlan(input) {
       return lockDayPlan({ store, calendarWrite, clock }, input);
     },
@@ -71,6 +134,16 @@ export function createAgentService(deps) {
 
     async logHabitCheckIn(input) {
       return logHabitCheckIn({ store, clock }, input);
+    },
+
+    async startMicroaction(input) {
+      const date = clock.todayDateKey();
+      const dayPlan = await store.getDayPlan(date);
+      return startMicroaction({ store }, { ...input, dayPlan, date });
+    },
+
+    async parkMicroaction(input) {
+      return parkMicroaction({ store, clock }, input);
     },
 
     async completeMicroaction(input) {

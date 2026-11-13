@@ -1,9 +1,10 @@
 import { DayPlanStatus } from '../domain/statuses.js';
 import { AROHAFLOW_CALENDAR_ID, publishExternalKey } from '../domain/arohaflowCalendar.js';
+import { assessDayPlanOvercommit } from './overcommit.js';
 
 /**
  * @param {{ store: object, calendarWrite: object, clock: { now(): Date } }} deps
- * @param {{ date: string, confirmed: boolean }} input
+ * @param {{ date: string, confirmed: boolean, intention?: string | null, acknowledgeOvercommit?: boolean }} input
  */
 export async function lockDayPlan(deps, input) {
   const { store, calendarWrite, clock } = deps;
@@ -14,6 +15,13 @@ export async function lockDayPlan(deps, input) {
   const plan = await store.getDayPlan(input.date);
   if (!plan) {
     throw new Error(`No Day Plan for ${input.date}`);
+  }
+
+  const overcommit = await assessDayPlanOvercommit(deps, { date: input.date });
+  if (overcommit.overcommitted && !input.acknowledgeOvercommit) {
+    throw new Error(
+      `Day Plan overcommit: Flexible Blocks ${overcommit.plannedMinutes} min exceed available ${overcommit.availableMinutes} min by ${overcommit.overByMinutes} min; edit the plan or pass acknowledgeOvercommit`,
+    );
   }
 
   const toPublish = plan.blocks.filter((block) => block.publishToCalendar);
@@ -32,7 +40,13 @@ export async function lockDayPlan(deps, input) {
     }
   }
 
-  const locked = { ...plan, status: DayPlanStatus.LOCKED };
+  const intention =
+    input.intention !== undefined
+      ? input.intention
+      : (plan.intention ?? null);
+
+  const lockedAt = clock.now().toISOString();
+  const locked = { ...plan, status: DayPlanStatus.LOCKED, intention, lockedAt };
   await store.saveDayPlan(locked);
   await store.appendDayPlanChange({
     date: input.date,

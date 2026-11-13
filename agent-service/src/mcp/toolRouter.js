@@ -42,6 +42,37 @@ export function createMcpToolRouter(agent) {
       description: 'Return Today: Day Plan, digest, points, Streak, and Agent Activity.',
       call: () => agent.listToday(),
     },
+    {
+      name: 'edit_weekly_plan',
+      description: 'Edit Weekly Plan Action/Microaction candidates before accept.',
+      call: (args) => agent.editWeeklyPlan(args),
+    },
+    {
+      name: 'accept_weekly_plan',
+      description: 'Accept Weekly Plan candidates into Active Actions (does not lock Today).',
+      call: (args) => agent.acceptWeeklyPlan(args ?? {}),
+    },
+    {
+      name: 'schedule_microaction',
+      description: 'Schedule an accepted Microaction onto a Day Plan without locking.',
+      call: (args) => agent.scheduleMicroaction(args),
+    },
+    {
+      name: 'upsert_habit',
+      description: 'Create or update a Habit with scheduled days and a time anchor.',
+      call: (args) => agent.upsertHabit(args),
+    },
+    {
+      name: 'list_habits',
+      description: 'List Habits (scheduled days + time anchors).',
+      call: () => agent.listHabits(),
+    },
+    {
+      name: 'list_calendar_view',
+      description:
+        'Month surface: Calendar Events, Day Plan Blocks, habit anchors, and heatmap.',
+      call: (args) => agent.listCalendarView(args),
+    },
   ];
 
   const byName = new Map(tools.map((t) => [t.name, t]));

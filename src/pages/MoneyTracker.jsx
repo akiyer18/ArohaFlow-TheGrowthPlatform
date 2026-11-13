@@ -3,27 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { BarChart3, CreditCard, LineChart, PiggyBank, Plus, Wallet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  calculateTransactionTotals,
   createAccount,
   createBudgetCategory,
-  createExpenseTransaction,
   createIncomeIdea,
   createIncomeTransaction,
   createPlannedExpense,
   deleteIncomeIdea,
   deletePlannedExpense,
-  getAccounts,
-  getBudgetCategories,
-  getIncomeIdeas,
-  getPlannedExpenses,
-  getTransactions,
-  getTotalBalance,
   updateIncomeIdea,
   updatePlannedExpense,
 } from '../services';
+import { createDefaultMoney } from '../modules/money';
 import AppHeader from '../components/layout/AppHeader';
 import { Badge, Button, Card, Input, Modal, PageContainer, SectionHeader, Select } from '../components/ui';
 import StatementAnalyzerTab from '../components/bank-statement/StatementAnalyzerTab';
+
+const money = createDefaultMoney();
 
 const tabs = [
   { id: 'overview', label: 'Overview' },
@@ -76,23 +71,14 @@ const MoneyTracker = () => {
     try {
       setLoading(true);
       setError('');
-      const [accountsData, transactionsData, budgetData, plannedData, ideasData, totalsData, balanceData] =
-        await Promise.all([
-          getAccounts(),
-          getTransactions(),
-          getBudgetCategories(),
-          getPlannedExpenses(),
-          getIncomeIdeas(),
-          calculateTransactionTotals(),
-          getTotalBalance(),
-        ]);
-      setAccounts(accountsData);
-      setTransactions(transactionsData);
-      setBudgetCategories(budgetData);
-      setPlannedExpenses(plannedData);
-      setIncomeIdeas(ideasData);
-      setTotals(totalsData);
-      setTotalBalance(balanceData);
+      const overview = await money.getOverview();
+      setAccounts(overview.accounts);
+      setTransactions(overview.transactions);
+      setBudgetCategories(overview.budgetCategories);
+      setPlannedExpenses(overview.plannedExpenses);
+      setIncomeIdeas(overview.incomeIdeas);
+      setTotals(overview.totals);
+      setTotalBalance(overview.totalBalance);
     } catch (err) {
       setError(err.message || 'Failed to load money tracker data.');
     } finally {
@@ -122,7 +108,7 @@ const MoneyTracker = () => {
   const onAddExpense = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    await createExpenseTransaction({
+    const overview = await money.recordExpense({
       category: formData.get('category'),
       item: formData.get('item'),
       amount: formData.get('amount'),
@@ -131,7 +117,13 @@ const MoneyTracker = () => {
       accountId: formData.get('paymentMethod') === 'online' ? formData.get('accountId') : null,
     });
     event.currentTarget.reset();
-    loadAllData();
+    setAccounts(overview.accounts);
+    setTransactions(overview.transactions);
+    setBudgetCategories(overview.budgetCategories);
+    setPlannedExpenses(overview.plannedExpenses);
+    setIncomeIdeas(overview.incomeIdeas);
+    setTotals(overview.totals);
+    setTotalBalance(overview.totalBalance);
   };
 
   const onAddAccount = async (event) => {
