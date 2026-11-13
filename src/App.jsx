@@ -12,6 +12,7 @@ import OsShell from './os/OsShell';
 import TodayPage from './os/TodayPage';
 import EmailDigestPage from './os/EmailDigestPage';
 import AnalyticsPage from './os/AnalyticsPage';
+import CalendarViewPage from './os/CalendarViewPage';
 import OsPlaceholderPage from './os/OsPlaceholderPage';
 import MoreToolsPage from './os/MoreToolsPage';
 
@@ -20,7 +21,6 @@ const TaskManager = lazy(() => import('./pages/TaskManager'));
 const MealPlanning = lazy(() => import('./pages/MealPlanning'));
 const GroceryList = lazy(() => import('./pages/GroceryList'));
 const HabitTracker = lazy(() => import('./pages/HabitTracker'));
-const SmartCalendar = lazy(() => import('./pages/SmartCalendar'));
 const FlowMode = lazy(() => import('./pages/FlowMode'));
 const Journal = lazy(() => import('./pages/Journal'));
 const KnowledgeExpansion = lazy(() => import('./pages/KnowledgeExpansion'));
@@ -63,6 +63,8 @@ function App() {
                 <Route path="/today" element={<TodayPage />} />
                 <Route path="/email-digest" element={<EmailDigestPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/calendar" element={<CalendarViewPage />} />
+                <Route path="/smart-calendar" element={<CalendarViewPage />} />
                 <Route
                   path="/goals"
                   element={
@@ -90,7 +92,6 @@ function App() {
               <Route path="/meal-planning" element={<LegacyFrame><MealPlanning /></LegacyFrame>} />
               <Route path="/grocery-list" element={<LegacyFrame><GroceryList /></LegacyFrame>} />
               <Route path="/habit-tracker" element={<LegacyFrame><HabitTracker /></LegacyFrame>} />
-              <Route path="/smart-calendar" element={<LegacyFrame><SmartCalendar /></LegacyFrame>} />
               <Route path="/flow-mode" element={<LegacyFrame><FlowMode /></LegacyFrame>} />
               <Route path="/journal" element={<LegacyFrame><Journal /></LegacyFrame>} />
               <Route path="/knowledge-expansion" element={<LegacyFrame><KnowledgeExpansion /></LegacyFrame>} />

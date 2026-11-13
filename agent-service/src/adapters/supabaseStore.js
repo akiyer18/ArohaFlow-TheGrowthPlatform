@@ -276,6 +276,31 @@ export function createSupabaseStore(client) {
       throwIfError(error, 'appendAgentActivity');
     },
 
+    async listHabits() {
+      const { data, error } = await client.from('agent_habits').select('*').order('id');
+      throwIfError(error, 'listHabits');
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        label: row.label,
+        scheduledDays: structuredClone(row.scheduled_days ?? []),
+        timeAnchor: row.time_anchor,
+      }));
+    },
+
+    async upsertHabit(habit) {
+      const { error } = await client.from('agent_habits').upsert(
+        {
+          id: habit.id,
+          label: habit.label,
+          scheduled_days: habit.scheduledDays,
+          time_anchor: habit.timeAnchor,
+        },
+        { onConflict: 'id' },
+      );
+      throwIfError(error, 'upsertHabit');
+      return structuredClone(habit);
+    },
+
     async getHabitCheckIns(dateKey) {
       const { data, error } = await client
         .from('agent_habit_checkins')

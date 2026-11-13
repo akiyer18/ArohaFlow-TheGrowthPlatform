@@ -5,7 +5,7 @@ import './today.css';
 
 const PRIMARY_NAV = [
   { to: '/today', label: 'Today' },
-  { to: '/smart-calendar', label: 'Calendar' },
+  { to: '/calendar', label: 'Calendar' },
   { to: '/goals', label: 'Goals' },
   { to: '/applications', label: 'Applications' },
   { to: '/money-tracker', label: 'Money' },

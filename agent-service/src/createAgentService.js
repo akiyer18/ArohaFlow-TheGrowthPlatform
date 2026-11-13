@@ -20,6 +20,7 @@ import {
   acceptWeeklyPlan,
   scheduleMicroaction,
 } from './tools/weeklyPlanAccept.js';
+import { upsertHabit, listHabits, listCalendarView } from './tools/habitCalendar.js';
 import { assessDayPlanOvercommit } from './tools/overcommit.js';
 
 /**
@@ -97,6 +98,18 @@ export function createAgentService(deps) {
 
     async scheduleMicroaction(input) {
       return scheduleMicroaction({ store, clock }, input);
+    },
+
+    async upsertHabit(input) {
+      return upsertHabit({ store }, input);
+    },
+
+    async listHabits() {
+      return listHabits({ store });
+    },
+
+    async listCalendarView(input) {
+      return listCalendarView({ store, clock }, input);
     },
 
     async assessDayPlanOvercommit(input) {

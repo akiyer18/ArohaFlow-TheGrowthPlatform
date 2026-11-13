@@ -14,6 +14,7 @@ export function createMemoryStore() {
     habitCheckInsByDate: new Map(),
     senderAllowlist: [],
     goals: [],
+    habits: [],
     weeklyPlanProposal: null,
     dayPlanChangeLog: [],
   };
@@ -151,6 +152,15 @@ export function createMemoryStore() {
     },
     async listGoals() {
       return structuredClone(state.goals);
+    },
+    async listHabits() {
+      return structuredClone(state.habits);
+    },
+    async upsertHabit(habit) {
+      const idx = state.habits.findIndex((h) => h.id === habit.id);
+      if (idx >= 0) state.habits[idx] = structuredClone(habit);
+      else state.habits.push(structuredClone(habit));
+      return structuredClone(habit);
     },
     async saveWeeklyPlanProposal(proposal) {
       state.weeklyPlanProposal = structuredClone(proposal);

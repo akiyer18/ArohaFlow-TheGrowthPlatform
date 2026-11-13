@@ -81,6 +81,13 @@ CREATE TABLE IF NOT EXISTS agent_habit_checkins (
   PRIMARY KEY (date_key, habit_id)
 );
 
+CREATE TABLE IF NOT EXISTS agent_habits (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  scheduled_days JSONB NOT NULL DEFAULT '[]'::jsonb,
+  time_anchor TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS agent_sender_allowlist (
   id TEXT PRIMARY KEY,
   entries JSONB NOT NULL DEFAULT '[]'::jsonb

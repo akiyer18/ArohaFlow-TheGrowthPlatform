@@ -10,6 +10,7 @@ Background tool facade for ArohaFlow (scheduler + MCP share this interface).
 - `proposeDayPlan`
 - `proposeWeeklyPlan` (LLM candidates; not auto-committed)
 - `editWeeklyPlan` / `acceptWeeklyPlan` / `scheduleMicroaction` (candidates → Goals → Day Plan; no auto-lock)
+- `upsertHabit` / `listHabits` / `listCalendarView` (schedule + time anchor; habit consistency skips unscheduled days)
 - `assessDayPlanOvercommit` (Flexible Blocks vs work-window)
 - `lockDayPlan` (optional Intention; records `lockedAt`; requires `acknowledgeOvercommit` when overcommitted)
 - `unlockDayPlan` (retracts Calendar Publish on Unlock)

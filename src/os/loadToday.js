@@ -1,5 +1,6 @@
 import { TODAY_FIXTURE, TOMORROW_PLAN_FIXTURE } from './fixtures/todayFixture';
 import { ANALYTICS_FIXTURE } from './fixtures/analyticsFixture';
+import { CALENDAR_VIEW_FIXTURE } from './fixtures/calendarFixture';
 
 /**
  * Thin UI loader for the Agent Service `listToday` shape.
@@ -18,4 +19,11 @@ export async function loadTomorrowPlan() {
 /** Weekly Analytics: Agent Activity + four measures (fixture-backed for #25). */
 export async function loadAnalytics() {
   return structuredClone(ANALYTICS_FIXTURE);
+}
+
+/** Calendar View: events, Day Plan Blocks, habit anchors + heatmap (`listCalendarView`). */
+export async function loadCalendarView(month = CALENDAR_VIEW_FIXTURE.month) {
+  const payload = structuredClone(CALENDAR_VIEW_FIXTURE);
+  payload.month = month;
+  return payload;
 }

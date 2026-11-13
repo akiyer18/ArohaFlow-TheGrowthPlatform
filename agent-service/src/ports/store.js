@@ -8,7 +8,7 @@
  * - getDailyPoints / addDailyPoints / listCompletions / appendCompletion / getDailyPointTarget / getStreak
  * - recordStreakTargetMet / recordStreakMiss
  * - listAgentActivity / appendAgentActivity
- * - getHabitCheckIns / saveHabitCheckIn
+ * - listHabits / upsertHabit / getHabitCheckIns / saveHabitCheckIn
  * - upsertCalendarEvent / listCalendarEvents
  * - listSenderAllowlist / setSenderAllowlist
  * - seedGoals / listGoals / listOpenMicroactions / listActiveActions / completeMicroaction / completeAction
@@ -26,6 +26,8 @@ export const STORE_METHODS = [
   'getDailyPointTarget',
   'getStreak',
   'listAgentActivity',
+  'listHabits',
+  'upsertHabit',
   'getHabitCheckIns',
   'listCalendarEvents',
   'listSenderAllowlist',
