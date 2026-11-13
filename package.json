@@ -11,6 +11,7 @@
     "agent:cadence": "node agent-service/src/runCadence.js",
     "agent:start": "node agent-service/src/startAgent.js",
     "agent:mcp": "node agent-service/src/mcp/stdio.js",
+    "agent:oauth": "node agent-service/src/oauthSetup.js",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -20,6 +21,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "framer-motion": "^12.34.3",
+    "googleapis": "^190.0.0",
     "lucide-react": "^0.575.0",
     "openai": "^6.25.0",
     "papaparse": "^5.5.3",

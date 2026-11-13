@@ -39,8 +39,6 @@ npm run agent:mcp
 
 Tools: `sync_calendar`, `build_email_digest`, `propose_day_plan`, `lock_day_plan`, `log_habit_checkin`, `complete_microaction`, `list_today`.
 
-Local entry uses memory Store + fake Google/LLM ports until live OAuth adapters land.
-
 ## Ports
 
 Clock, Store, Gmail (read-only), LLM (email rank), Calendar read, Calendar write (ArohaFlow calendar only).
@@ -50,7 +48,27 @@ Clock, Store, Gmail (read-only), LLM (email rank), Calendar read, Calendar write
 - Memory: default for unit tests
 - Supabase: set `AROHAFLOW_SUPABASE_URL` + `AROHAFLOW_SUPABASE_SERVICE_ROLE_KEY`, apply `database/agent-service-schema.sql`
 
-Cadence/MCP use `createStoreFromEnv()` so both processes share durable data when Supabase is configured.
+### Google OAuth (Agent Service only)
+
+Tokens never go in the Vite client. Put credentials in `.env.agent`:
+
+```bash
+AROHAFLOW_GOOGLE_CLIENT_ID=...
+AROHAFLOW_GOOGLE_CLIENT_SECRET=...
+AROHAFLOW_GOOGLE_REFRESH_TOKEN=...
+# optional if the calendar id is not discoverable by name:
+# AROHAFLOW_GOOGLE_CALENDAR_ID=...
+```
+
+One-time consent (creates refresh token):
+
+```bash
+npm run agent:oauth
+```
+
+Create a Google Calendar named **ArohaFlow** for Calendar Publish (or set `AROHAFLOW_GOOGLE_CALENDAR_ID`). Scopes: Gmail read-only + Calendar events + calendar list read.
+
+Cadence/MCP use `createStoreFromEnv()` + `createGooglePortsFromEnv()` so both share durable Store and live Google when configured.
 
 ## Test
 

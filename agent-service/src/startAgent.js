@@ -5,11 +5,14 @@
  *
  * Usage: npm run agent:start
  */
+import { loadAgentEnv } from './loadEnv.js';
 import { createLocalAgent } from './createLocalAgent.js';
 import { createScheduler } from './scheduler.js';
 import { createSchedulerLoop } from './schedulerLoop.js';
 
-const { agent, clock, store } = createLocalAgent();
+loadAgentEnv();
+
+const { agent, clock, store, googleKind } = createLocalAgent();
 const scheduler = createScheduler({ agent });
 const loop = createSchedulerLoop({
   scheduler,
@@ -19,7 +22,7 @@ const loop = createSchedulerLoop({
   },
 });
 
-console.error('ArohaFlow Agent Service started (local memory ports; morning + ~17:30 UTC windows)');
+console.error(`ArohaFlow Agent Service started (google=${googleKind}; morning + ~17:30 UTC windows)`);
 console.error(`Store ready; today=${clock.todayDateKey()}; activity=${(await store.listAgentActivity()).length}`);
 
 await loop.start({ intervalMs: 60_000 });

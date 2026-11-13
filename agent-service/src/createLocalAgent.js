@@ -6,20 +6,40 @@ import { createFakeLlm } from './adapters/fakeLlm.js';
 import { createFakeCalendarRead } from './adapters/fakeCalendarRead.js';
 import { createFakeCalendarWrite } from './adapters/fakeCalendarWrite.js';
 import { createStoreFromEnv } from './createStore.js';
+import { createGooglePortsFromEnv } from './createGooglePorts.js';
 
 /**
- * Local/demo Agent Service. Store: Supabase when env is set, else memory.
- * Live Google OAuth adapters land in #12; Cursor MCP can exercise the facade today.
+ * Agent Service process wiring.
+ * Store: Supabase when env set, else memory.
+ * Google: live OAuth ports when env set, else fakes (or explicit message overrides for demos).
  *
- * @param {{ now?: Date, store?: object, gmailMessages?: object[], calendarEvents?: object[] }} [options]
+ * @param {{
+ *   now?: Date,
+ *   store?: object,
+ *   gmailMessages?: object[],
+ *   calendarEvents?: object[],
+ *   env?: NodeJS.ProcessEnv,
+ * }} [options]
  */
 export function createLocalAgent(options = {}) {
+  const env = options.env ?? process.env;
   const clock = options.now ? createFixedClock(options.now) : createSystemClock();
-  const store = options.store ?? createStoreFromEnv().store;
+  const store = options.store ?? createStoreFromEnv(env).store;
+
+  const google = createGooglePortsFromEnv(env);
+  const gmail =
+    options.gmailMessages != null ? createFakeGmail(options.gmailMessages) : google.gmail;
+  const calendarRead =
+    options.calendarEvents != null
+      ? createFakeCalendarRead(options.calendarEvents)
+      : google.calendarRead;
+  const calendarWrite =
+    options.calendarEvents != null ? createFakeCalendarWrite() : google.calendarWrite;
+
   const agent = createAgentService({
     clock,
     store,
-    gmail: createFakeGmail(options.gmailMessages ?? []),
+    gmail,
     llm: createFakeLlm({
       rank(candidates) {
         return candidates.map((c) => ({
@@ -29,9 +49,9 @@ export function createLocalAgent(options = {}) {
         }));
       },
     }),
-    calendarRead: createFakeCalendarRead(options.calendarEvents ?? []),
-    calendarWrite: createFakeCalendarWrite(),
+    calendarRead,
+    calendarWrite,
   });
 
-  return { agent, clock, store };
+  return { agent, clock, store, googleKind: google.kind };
 }
