@@ -77,3 +77,11 @@ npm run agent:test
 ```
 
 Primary seam: `createAgentService({ ...ports })`.
+
+## Email Digest eval (not default unit suite)
+
+```bash
+npm run agent:eval:digest
+```
+
+Labelled fixtures live in `agent-service/eval/digest/fixtures/`. Extend with real inbox examples as you label them.
