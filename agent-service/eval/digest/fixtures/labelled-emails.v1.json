@@ -1,0 +1,74 @@
+{
+  "name": "labelled-emails.v1",
+  "description": "Synthetic labelled set for Email Digest eval. Extend with real inbox rows (id/from/subject/snippet/listUnsubscribe/expected). expected: include | exclude.",
+  "allowlist": [
+    { "type": "email", "value": "tutor@uni.ac.uk" },
+    { "type": "domain", "value": "careers.example.edu" }
+  ],
+  "emails": [
+    {
+      "id": "allow-1",
+      "from": "tutor@uni.ac.uk",
+      "subject": "Seminar tomorrow",
+      "snippet": "Please bring your notes",
+      "listUnsubscribe": false,
+      "expected": "include",
+      "expectedRank": 1,
+      "labelNote": "Sender Allowlist email"
+    },
+    {
+      "id": "allow-2",
+      "from": "jobs@careers.example.edu",
+      "subject": "Interview slot",
+      "snippet": "Can you do Thursday?",
+      "listUnsubscribe": false,
+      "expected": "include",
+      "expectedRank": 2,
+      "labelNote": "Sender Allowlist domain"
+    },
+    {
+      "id": "noise-1",
+      "from": "deals@newsletter.com",
+      "subject": "50% off",
+      "snippet": "Unsubscribe anytime",
+      "listUnsubscribe": true,
+      "expected": "exclude",
+      "labelNote": "List-Unsubscribe noise"
+    },
+    {
+      "id": "noise-2",
+      "from": "noreply@shop.example",
+      "subject": "Order shipped",
+      "snippet": "Your package is on the way",
+      "listUnsubscribe": false,
+      "expected": "exclude",
+      "labelNote": "noreply noise"
+    },
+    {
+      "id": "llm-keep-1",
+      "from": "alex@example.com",
+      "subject": "Quick question about the role",
+      "snippet": "Are you still hiring for the platform engineer seat?",
+      "listUnsubscribe": false,
+      "expected": "include",
+      "expectedRank": 3,
+      "labelNote": "Personal/job ask — LLM should keep"
+    },
+    {
+      "id": "llm-drop-1",
+      "from": "promo@brand.example",
+      "subject": "Weekend vibes",
+      "snippet": "Check out our new drop",
+      "listUnsubscribe": false,
+      "expected": "exclude",
+      "labelNote": "Promo without List-Unsubscribe — LLM should drop"
+    }
+  ],
+  "llmRank": [
+    {
+      "messageId": "llm-keep-1",
+      "score": 0.92,
+      "reason": "job-search personal ask"
+    }
+  ]
+}
