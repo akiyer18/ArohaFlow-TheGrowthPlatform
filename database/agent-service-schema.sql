@@ -103,6 +103,15 @@ CREATE TABLE IF NOT EXISTS agent_weekly_plan_proposals (
   payload JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
+CREATE TABLE IF NOT EXISTS agent_applications (
+  id TEXT PRIMARY KEY,
+  company TEXT NOT NULL,
+  role_title TEXT NOT NULL,
+  link TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL
+);
+
 INSERT INTO agent_streak (id, count, freeze_remaining_this_week, freeze_week_key)
 VALUES (1, 0, 1, NULL)
 ON CONFLICT (id) DO NOTHING;

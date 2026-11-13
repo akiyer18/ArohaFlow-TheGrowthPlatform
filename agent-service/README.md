@@ -34,6 +34,24 @@ npm run agent:start
 
 Facade methods `runMorningCadence` / `runEveningCadence` own the cadence; `createScheduler` + `createSchedulerLoop` are the process timer. Agent Activity includes a `scheduled_run` rollup.
 
+## HTTP bridge (OS UI)
+
+`npm run agent:start` also serves a **loopback-only** JSON API for the Vite OS shell (`127.0.0.1:8787` by default). Set in `.env.agent`:
+
+```bash
+AROHAFLOW_AGENT_HTTP_HOST=127.0.0.1
+AROHAFLOW_AGENT_HTTP_PORT=8787
+AROHAFLOW_AGENT_HTTP_CORS=http://localhost:5173
+```
+
+In the Vite `.env`:
+
+```bash
+VITE_AGENT_HTTP_URL=http://127.0.0.1:8787
+```
+
+Routes map onto facade methods (`/today`, `/calendar-view`, `/goals`, `/habits`, `/applications`, `/allowlist`, lock/complete helpers). Non-loopback bind is rejected. Without `VITE_AGENT_HTTP_URL`, the OS UI keeps portfolio fixtures.
+
 ## MCP
 
 Stdio MCP server wraps the same facade (snake_case tool names for Cursor):

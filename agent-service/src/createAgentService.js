@@ -22,6 +22,11 @@ import {
 } from './tools/weeklyPlanAccept.js';
 import { upsertHabit, listHabits, listCalendarView } from './tools/habitCalendar.js';
 import { assessDayPlanOvercommit } from './tools/overcommit.js';
+import {
+  listApplications,
+  upsertApplication,
+  deleteApplication,
+} from './tools/applications.js';
 
 /**
  * Agent Service tool facade — primary seam for scheduler, MCP, and tests.
@@ -112,8 +117,38 @@ export function createAgentService(deps) {
       return listHabits({ store });
     },
 
+    async listGoals() {
+      return store.listGoals();
+    },
+
+    async listSenderAllowlist() {
+      return store.listSenderAllowlist();
+    },
+
+    async setSenderAllowlist(entries) {
+      await store.setSenderAllowlist(entries ?? []);
+      return store.listSenderAllowlist();
+    },
+
+    async listApplications() {
+      return listApplications({ store });
+    },
+
+    async upsertApplication(input) {
+      return upsertApplication({ store }, input);
+    },
+
+    async deleteApplication(input) {
+      return deleteApplication({ store }, input);
+    },
+
     async listCalendarView(input) {
       return listCalendarView({ store, clock }, input);
+    },
+
+    async getDayPlan(input) {
+      const date = input?.date ?? clock.todayDateKey();
+      return store.getDayPlan(date);
     },
 
     async assessDayPlanOvercommit(input) {

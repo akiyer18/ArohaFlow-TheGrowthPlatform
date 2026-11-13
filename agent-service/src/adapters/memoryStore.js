@@ -15,6 +15,7 @@ export function createMemoryStore() {
     senderAllowlist: [],
     goals: [],
     habits: [],
+    applications: [],
     weeklyPlanProposal: null,
     dayPlanChangeLog: [],
   };
@@ -161,6 +162,18 @@ export function createMemoryStore() {
       if (idx >= 0) state.habits[idx] = structuredClone(habit);
       else state.habits.push(structuredClone(habit));
       return structuredClone(habit);
+    },
+    async listApplications() {
+      return structuredClone(state.applications);
+    },
+    async upsertApplication(application) {
+      const idx = state.applications.findIndex((a) => a.id === application.id);
+      if (idx >= 0) state.applications[idx] = structuredClone(application);
+      else state.applications.push(structuredClone(application));
+      return structuredClone(application);
+    },
+    async deleteApplication(id) {
+      state.applications = state.applications.filter((a) => a.id !== id);
     },
     async saveWeeklyPlanProposal(proposal) {
       state.weeklyPlanProposal = structuredClone(proposal);

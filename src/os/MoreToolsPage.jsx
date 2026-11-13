@@ -1,12 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const LINKS = [
-  { to: '/analytics', label: 'Analytics (weekly review)' },
-  { to: '/email-digest', label: 'Email Digest' },
+const CORE = [
   { to: '/journal', label: 'Journal' },
   { to: '/knowledge-expansion', label: 'Knowledge' },
-  { to: '/dashboard', label: 'Legacy module hub' },
+];
+
+const SECONDARY = [
+  { to: '/email-digest', label: 'Email Digest' },
+  { to: '/allowlist', label: 'Sender Allowlist' },
+  { to: '/analytics', label: 'Analytics (weekly review)' },
 ];
 
 export default function MoreToolsPage() {
@@ -16,10 +19,24 @@ export default function MoreToolsPage() {
         More tools
       </h1>
       <p className="os-meta" style={{ marginBottom: 'var(--space-md)' }}>
-        Secondary tools. Task Manager and Flow Mode stay Legacy and are not linked here.
+        Journal and Knowledge live here. Digest, Allowlist, and Analytics stay off primary nav. Task
+        Manager and Flow Mode stay Legacy and are not linked.
       </p>
+
+      <h2 className="os-panel-title">Core</h2>
+      <ul className="os-list" style={{ marginBottom: 'var(--space-lg)' }}>
+        {CORE.map((item) => (
+          <li key={item.to}>
+            <Link className="os-list-title" to={item.to} style={{ color: 'var(--color-ink)' }}>
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="os-panel-title">Also here</h2>
       <ul className="os-list">
-        {LINKS.map((item) => (
+        {SECONDARY.map((item) => (
           <li key={item.to}>
             <Link className="os-list-title" to={item.to} style={{ color: 'var(--color-ink)' }}>
               {item.label}
