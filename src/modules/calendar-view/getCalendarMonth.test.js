@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { getCalendarMonth, buildMonthCells, monthLabel } from './index.js';
+import {
+  getCalendarMonth,
+  getCalendarWeek,
+  buildMonthCells,
+  buildWeekCells,
+  monthLabel,
+} from './index.js';
 
 describe('Calendar View module (#4)', () => {
   it('exposes a small month read surface without legacy service fan-in', async () => {
@@ -23,5 +29,22 @@ describe('Calendar View module (#4)', () => {
     // 2026-11-01 is Sunday → no leading pads
     expect(cells[0]).toBe('2026-11-01');
     expect(cells).toHaveLength(30);
+  });
+
+  it('exposes a week surface filtered from the month read', async () => {
+    expect(buildWeekCells('2026-11-13')).toEqual([
+      '2026-11-08',
+      '2026-11-09',
+      '2026-11-10',
+      '2026-11-11',
+      '2026-11-12',
+      '2026-11-13',
+      '2026-11-14',
+    ]);
+
+    const week = await getCalendarWeek({ date: '2026-11-13' });
+    expect(week.weekStart).toBe('2026-11-08');
+    expect(week.weekDates).toHaveLength(7);
+    expect(week.habitDays.every((d) => week.weekDates.includes(d.date))).toBe(true);
   });
 });

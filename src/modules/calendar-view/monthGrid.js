@@ -39,3 +39,12 @@ export function indexByDate(items, dateOf) {
   }
   return map;
 }
+
+/** Seven UTC date keys for the week containing `dateKey` (Sunday start). */
+export function buildWeekCells(dateKey) {
+  const weekday = weekdayUtc(dateKey);
+  const startMs = Date.parse(`${dateKey}T12:00:00.000Z`) - weekday * 24 * 60 * 60 * 1000;
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(startMs + i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  );
+}

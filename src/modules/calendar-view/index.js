@@ -10,5 +10,7 @@ export {
   daysInMonth,
   weekdayUtc,
   buildMonthCells,
+  buildWeekCells,
   indexByDate,
 } from './monthGrid.js';
+export { getCalendarWeek } from './getCalendarWeek.js';

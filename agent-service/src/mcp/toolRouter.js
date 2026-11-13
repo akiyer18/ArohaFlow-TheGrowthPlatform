@@ -57,6 +57,22 @@ export function createMcpToolRouter(agent) {
       description: 'Schedule an accepted Microaction onto a Day Plan without locking.',
       call: (args) => agent.scheduleMicroaction(args),
     },
+    {
+      name: 'upsert_habit',
+      description: 'Create or update a Habit with scheduled days and a time anchor.',
+      call: (args) => agent.upsertHabit(args),
+    },
+    {
+      name: 'list_habits',
+      description: 'List Habits (scheduled days + time anchors).',
+      call: () => agent.listHabits(),
+    },
+    {
+      name: 'list_calendar_view',
+      description:
+        'Month surface: Calendar Events, Day Plan Blocks, habit anchors, and heatmap.',
+      call: (args) => agent.listCalendarView(args),
+    },
   ];
 
   const byName = new Map(tools.map((t) => [t.name, t]));

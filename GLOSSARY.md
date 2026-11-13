@@ -13,7 +13,7 @@ The server-side background worker that reads external sources on a schedule, app
 _Avoid_: bot, AI assistant, MCP server (MCP is a client interface onto the Agent Service's tools, not the service itself)
 
 **Store**:
-The module the Agent Service (and later the OS UI) uses to read and write life data — Day Plans, Email Digest, Goals, Actions, Microactions, Applications, Habit Check-ins, Daily Points, Calendar Events, Sender Allowlist, Agent Activity. Callers never speak PostgREST; Local/Supabase/in-memory fakes are adapters behind this interface.
+The module the Agent Service (and later the OS UI) uses to read and write life data — Day Plans, Email Digest, Goals, Actions, Microactions, Applications, Habits (scheduled days + time anchors), Habit Check-ins, Daily Points, Calendar Events, Sender Allowlist, Agent Activity. Callers never speak PostgREST; Local/Supabase/in-memory fakes are adapters behind this interface.
 _Avoid_: database, repository (OK internally), dataClient, supabase client
 
 **Day Plan**:
