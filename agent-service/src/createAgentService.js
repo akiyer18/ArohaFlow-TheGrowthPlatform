@@ -15,6 +15,11 @@ import { runMorningCadence, runEveningCadence } from './tools/cadence.js';
 import { DayPlanStatus } from './domain/statuses.js';
 import { ensurePlanReadyCompletion } from './tools/planReady.js';
 import { proposeWeeklyPlan } from './tools/proposeWeeklyPlan.js';
+import {
+  editWeeklyPlan,
+  acceptWeeklyPlan,
+  scheduleMicroaction,
+} from './tools/weeklyPlanAccept.js';
 import { assessDayPlanOvercommit } from './tools/overcommit.js';
 
 /**
@@ -80,6 +85,18 @@ export function createAgentService(deps) {
     async proposeWeeklyPlan(input) {
       if (!llm) throw new Error('LLM port required for propose_weekly_plan');
       return proposeWeeklyPlan({ store, llm, clock }, input);
+    },
+
+    async editWeeklyPlan(input) {
+      return editWeeklyPlan({ store, clock }, input);
+    },
+
+    async acceptWeeklyPlan(input) {
+      return acceptWeeklyPlan({ store, clock }, input ?? {});
+    },
+
+    async scheduleMicroaction(input) {
+      return scheduleMicroaction({ store, clock }, input);
     },
 
     async assessDayPlanOvercommit(input) {

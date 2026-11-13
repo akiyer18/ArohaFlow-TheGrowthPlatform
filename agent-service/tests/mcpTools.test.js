@@ -52,6 +52,9 @@ describe('MCP tool router', () => {
       'log_habit_checkin',
       'complete_microaction',
       'list_today',
+      'edit_weekly_plan',
+      'accept_weekly_plan',
+      'schedule_microaction',
     ]);
 
     const synced = await mcp.callTool('sync_calendar', {});
