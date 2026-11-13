@@ -12,6 +12,7 @@
  * - upsertCalendarEvent / listCalendarEvents
  * - listSenderAllowlist / setSenderAllowlist
  * - seedGoals / listGoals / listOpenMicroactions / listActiveActions / completeMicroaction / completeAction
+ * - listApplications / upsertApplication / deleteApplication
  * - getMicroaction / getActiveMicroaction / setMicroactionStatus
  * - saveWeeklyPlanProposal / getWeeklyPlanProposal
  */
@@ -32,6 +33,9 @@ export const STORE_METHODS = [
   'listCalendarEvents',
   'listSenderAllowlist',
   'listGoals',
+  'listApplications',
+  'upsertApplication',
+  'deleteApplication',
   'listOpenMicroactions',
   'listActiveActions',
   'getMicroaction',

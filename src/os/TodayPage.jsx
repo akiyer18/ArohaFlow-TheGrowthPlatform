@@ -5,7 +5,14 @@ import {
   compactDigest,
   nextMicroactionBlock,
 } from './fixtures/todayFixture';
-import { loadToday, loadTomorrowPlan } from './loadToday';
+import {
+  loadToday,
+  loadTomorrowPlan,
+  lockTomorrowPlan,
+  startMicroactionViaAgent,
+  completeMicroactionViaAgent,
+} from './loadToday';
+import { isAgentHttpConfigured } from './agentHttp';
 
 function formatClock(iso) {
   if (!iso) return '—';
@@ -77,7 +84,7 @@ export default function TodayPage() {
     }
   };
 
-  const confirmLock = ({ acknowledgeOvercommit }) => {
+  const confirmLock = async ({ acknowledgeOvercommit }) => {
     if (!lockPanel) return;
     const { plan, assessment, intention } = lockPanel;
     if (assessment.overcommitted && !acknowledgeOvercommit) {
@@ -86,12 +93,23 @@ export default function TodayPage() {
       );
       return;
     }
-    setLockMessage(
-      `Locked ${plan.date}${intention.trim() ? ` · “${intention.trim()}”` : ''}${
-        acknowledgeOvercommit ? ' (overcommit acknowledged)' : ''
-      }. Facade lock_day_plan wires when the live bridge is connected.`,
-    );
-    setLockPanel(null);
+    try {
+      const result = await lockTomorrowPlan({
+        date: plan.date,
+        intention: intention.trim() || null,
+        acknowledgeOvercommit,
+      });
+      setLockMessage(
+        result?.stub
+          ? result.message
+          : `Locked ${plan.date}${intention.trim() ? ` · “${intention.trim()}”` : ''}${
+              acknowledgeOvercommit ? ' (overcommit acknowledged)' : ''
+            }.`,
+      );
+      setLockPanel(null);
+    } catch (err) {
+      setLockMessage(err.message || 'Could not lock tomorrow’s Day Plan.');
+    }
   };
 
   const nextBlock = useMemo(
@@ -116,9 +134,34 @@ export default function TodayPage() {
         ? 'loading'
         : 'empty';
 
+  const openMicroaction = async (id) => {
+    if (!id) return;
+    setOpenedMicroactionId(id);
+    if (!isAgentHttpConfigured()) return;
+    try {
+      await startMicroactionViaAgent({ microactionId: id });
+      const payload = await loadToday();
+      setToday(payload);
+    } catch (err) {
+      setLockMessage(err.message || 'Could not start Microaction.');
+    }
+  };
+
   const openNext = () => {
     const id = today?.nextMicroaction?.id ?? nextBlock?.microactionId;
-    if (id) setOpenedMicroactionId(id);
+    return openMicroaction(id);
+  };
+
+  const completeOpened = async () => {
+    if (!openedMicroactionId || !isAgentHttpConfigured()) return;
+    try {
+      await completeMicroactionViaAgent({ microactionId: openedMicroactionId });
+      setOpenedMicroactionId(null);
+      const payload = await loadToday();
+      setToday(payload);
+    } catch (err) {
+      setLockMessage(err.message || 'Could not complete Microaction.');
+    }
   };
 
   return (
@@ -243,11 +286,21 @@ export default function TodayPage() {
       ) : null}
 
       {openedMicroactionId ? (
-        <p className="os-meta" role="status">
-          Next Microaction <code>{openedMicroactionId}</code>
-          {today?.nextMicroaction?.title ? ` · ${today.nextMicroaction.title}` : ''}. Complete or park
-          via Agent Service tools.
-        </p>
+        <div className="os-panel" role="status">
+          <p className="os-meta">
+            Next Microaction <code>{openedMicroactionId}</code>
+            {today?.nextMicroaction?.title ? ` · ${today.nextMicroaction.title}` : ''}.
+          </p>
+          {isAgentHttpConfigured() ? (
+            <div className="os-toolbar-actions" style={{ marginTop: 'var(--space-sm)' }}>
+              <button type="button" className="os-btn os-btn-primary" onClick={completeOpened}>
+                Complete Microaction
+              </button>
+            </div>
+          ) : (
+            <p className="os-meta">Complete or park via Agent Service tools when the bridge is connected.</p>
+          )}
+        </div>
       ) : null}
 
       <div className="os-today-grid">
@@ -283,7 +336,7 @@ export default function TodayPage() {
                       <button
                         type="button"
                         className="os-block-btn"
-                        onClick={() => setOpenedMicroactionId(block.microactionId)}
+                        onClick={() => openMicroaction(block.microactionId)}
                       >
                         Open
                       </button>

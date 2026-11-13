@@ -10,8 +10,7 @@ const PRIMARY_NAV = [
   { to: '/applications', label: 'Applications' },
   { to: '/money-tracker', label: 'Money' },
   { to: '/meal-planning', label: 'Food' },
-  { to: '/habit-tracker', label: 'Habits' },
-  { to: '/analytics', label: 'Analytics' },
+  { to: '/habits', label: 'Habits' },
   { to: '/more-tools', label: 'More tools' },
 ];
 

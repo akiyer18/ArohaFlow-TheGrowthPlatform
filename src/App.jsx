@@ -13,7 +13,10 @@ import TodayPage from './os/TodayPage';
 import EmailDigestPage from './os/EmailDigestPage';
 import AnalyticsPage from './os/AnalyticsPage';
 import CalendarViewPage from './os/CalendarViewPage';
-import OsPlaceholderPage from './os/OsPlaceholderPage';
+import GoalsPage from './os/GoalsPage';
+import ApplicationsPage from './os/ApplicationsPage';
+import HabitsPage from './os/HabitsPage';
+import AllowlistPage from './os/AllowlistPage';
 import MoreToolsPage from './os/MoreToolsPage';
 
 const MoneyTracker = lazy(() => import('./pages/MoneyTracker'));
@@ -65,24 +68,10 @@ function App() {
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/calendar" element={<CalendarViewPage />} />
                 <Route path="/smart-calendar" element={<CalendarViewPage />} />
-                <Route
-                  path="/goals"
-                  element={
-                    <OsPlaceholderPage
-                      title="Goals"
-                      note="Goals UI lands with OS milestone #13. Open Today for the Day Plan."
-                    />
-                  }
-                />
-                <Route
-                  path="/applications"
-                  element={
-                    <OsPlaceholderPage
-                      title="Applications"
-                      note="Applications UI lands with OS milestone #13. Open Today for the Day Plan."
-                    />
-                  }
-                />
+                <Route path="/goals" element={<GoalsPage />} />
+                <Route path="/applications" element={<ApplicationsPage />} />
+                <Route path="/habits" element={<HabitsPage />} />
+                <Route path="/allowlist" element={<AllowlistPage />} />
                 <Route path="/more-tools" element={<MoreToolsPage />} />
               </Route>
 

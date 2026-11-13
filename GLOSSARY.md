@@ -89,8 +89,8 @@ The user-maintained list of email addresses and domains whose mail is always tre
 _Avoid_: contacts sync (not implied), VIP (marketing term)
 
 **Application**:
-A tracked job application the user is managing (company, role, status, next step). May link to Microactions under a job-search Action; the Application itself is the CRM record.
-_Avoid_: job (too vague), opportunity (ambiguous)
+A tracked job application the user is managing (company, role title, link, short notes, status: To apply / Applied / Interviewing / Offer / Rejected). The Application itself is the CRM record. Linking Applications to Microactions under a job-search Action is deferred past v1 shell.
+_Avoid_: job (too vague), opportunity (ambiguous), next step (deferred field)
 
 **Today**:
 The home execution board after login: Intention, Day Plan, Open next Microaction, explainable Daily Points / Daily Point Target / Streak, and a compact Email Digest card (top 3–5 Important Emails with reasons linking to the full digest). Meals appear only as planned Fixed Blocks. Not a place to invent Goals or review Agent Activity.

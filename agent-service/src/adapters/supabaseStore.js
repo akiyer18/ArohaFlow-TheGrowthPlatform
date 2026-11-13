@@ -511,5 +511,39 @@ export function createSupabaseStore(client) {
       }
       throw new Error(`Action not found: ${actionId}`);
     },
+
+    async listApplications() {
+      const { data, error } = await client.from('agent_applications').select('*').order('id');
+      throwIfError(error, 'listApplications');
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        company: row.company,
+        roleTitle: row.role_title,
+        link: row.link ?? '',
+        notes: row.notes ?? '',
+        status: row.status,
+      }));
+    },
+
+    async upsertApplication(application) {
+      const { error } = await client.from('agent_applications').upsert(
+        {
+          id: application.id,
+          company: application.company,
+          role_title: application.roleTitle,
+          link: application.link ?? '',
+          notes: application.notes ?? '',
+          status: application.status,
+        },
+        { onConflict: 'id' },
+      );
+      throwIfError(error, 'upsertApplication');
+      return structuredClone(application);
+    },
+
+    async deleteApplication(id) {
+      const { error } = await client.from('agent_applications').delete().eq('id', id);
+      throwIfError(error, 'deleteApplication');
+    },
   };
 }
