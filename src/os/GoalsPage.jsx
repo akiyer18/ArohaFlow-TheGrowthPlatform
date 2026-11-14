@@ -62,13 +62,17 @@ export default function GoalsPage() {
     event.preventDefault();
     setMessage(null);
     try {
-      await upsertGoal({
+      const saved = await upsertGoal({
         id: goalForm.id.trim() || undefined,
         title: goalForm.title.trim(),
       });
       setGoalForm(EMPTY_GOAL);
       await refresh();
-      setMessage('Saved Goal');
+      if (saved?.id) {
+        setActionForm((f) => ({ ...f, goalId: saved.id }));
+        setWeeklyGoalId(saved.id);
+      }
+      setMessage('Saved Goal — selected in Action and Weekly Plan');
     } catch (err) {
       setMessage(err.message || 'Could not save Goal');
     }
@@ -78,15 +82,19 @@ export default function GoalsPage() {
     event.preventDefault();
     setMessage(null);
     try {
-      await upsertAction({
+      const saved = await upsertAction({
         goalId: actionForm.goalId,
         id: actionForm.id.trim() || undefined,
         title: actionForm.title.trim(),
         status: actionForm.status,
       });
-      setActionForm(EMPTY_ACTION);
+      const goalId = actionForm.goalId;
+      setActionForm({ ...EMPTY_ACTION, goalId });
       await refresh();
-      setMessage('Saved Action');
+      if (saved?.id) {
+        setMicroForm((f) => ({ ...f, actionId: saved.id }));
+      }
+      setMessage('Saved Action — selected for Microaction');
     } catch (err) {
       setMessage(err.message || 'Could not save Action');
     }
@@ -362,6 +370,9 @@ export default function GoalsPage() {
                 </option>
               ))}
             </select>
+            {goals.length === 0 ? (
+              <span className="os-meta">No Goals yet — save a Goal above first.</span>
+            ) : null}
           </label>
           <label className="os-stack" style={{ gap: 'var(--space-2xs)' }}>
             <span className="os-meta">Title</span>
