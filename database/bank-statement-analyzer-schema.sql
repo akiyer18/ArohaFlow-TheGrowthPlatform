@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_bank_statement_transactions_user_date ON bank_sta
 
 COMMENT ON TABLE bank_statement_transactions IS 'Parsed bank statement rows; raw files are not stored';
 
--- RLS
+-- RLS: authenticated owner only. No anon policies (PostgREST anon key cannot read/write).
 ALTER TABLE bank_statement_transactions ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view own bank_statement_transactions" ON bank_statement_transactions;

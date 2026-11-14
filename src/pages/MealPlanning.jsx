@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Pencil, Plus, Search, Sparkles, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -17,7 +17,6 @@ import {
   toggleRecipeFavorite,
   updateRecipe,
 } from '../services';
-import AppHeader from '../components/layout/AppHeader';
 import ParseRecipeModal from '../components/meal-planning/ParseRecipeModal';
 import { Badge, Button, Card, Input, Modal, PageContainer, SectionHeader, Select, Textarea } from '../components/ui';
 
@@ -50,9 +49,12 @@ function getQuickSelectDates() {
 }
 
 const MealPlanning = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('recipes');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab = ['recipes', 'plan', 'grocery'].includes(tabParam) ? tabParam : 'plan';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
   const [recipes, setRecipes] = useState([]);
   const [mealPlans, setMealPlans] = useState([]);
@@ -67,6 +69,17 @@ const MealPlanning = () => {
   useEffect(() => {
     if (user) loadData();
   }, [user]);
+
+  useEffect(() => {
+    if (['recipes', 'plan', 'grocery'].includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const selectTab = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   const loadData = async () => {
     try {
@@ -88,7 +101,7 @@ const MealPlanning = () => {
     setRecipes(searchResults);
   };
 
-  const onGenerateGrocery = async () => {
+  const onGenerateGrocery = async ({ goToList = false } = {}) => {
     setGroceryMessage('');
     setError('');
     try {
@@ -100,6 +113,7 @@ const MealPlanning = () => {
       const required = await generateShoppingListFromMealPlans(startStr, endStr);
       if (required.length === 0) {
         setGroceryMessage('No meals planned for the next 7 days. Add recipes to your meal plan first.');
+        selectTab('plan');
         return;
       }
       const added = await addGroceryItemsFromMealPlan(required);
@@ -108,29 +122,40 @@ const MealPlanning = () => {
       } else {
         setGroceryMessage('All meal plan ingredients are already in your grocery list or inventory. Nothing to add.');
       }
-      loadData();
+      await loadData();
+      if (goToList) {
+        navigate('/grocery-list');
+      } else {
+        selectTab('grocery');
+      }
     } catch (err) {
       setGroceryMessage('');
       setError(err.message || 'Failed to generate grocery list.');
     }
   };
 
-  if (loading) return <div className="min-h-screen" />;
+  if (loading) return <div className="os-state os-skeleton" aria-busy="true"><span style={{ width: '40%' }} /><span style={{ width: '65%' }} /></div>;
 
   return (
-    <div className="min-h-screen">
-      <AppHeader title="Meal Planning" subtitle="Recipes and weekly plan" onLogout={() => { logout(); navigate('/login'); }} backTo="/dashboard" />
+    <div className="os-stack">
+      <div className="os-toolbar">
+        <div>
+          <h1 className="os-panel-title" style={{ fontSize: 'var(--text-xl)' }}>
+            Food
+          </h1>
+          <p className="os-meta">Meal plan → grocery list</p>
+        </div>
+        <div className="os-toolbar-actions">
+          <Button variant={activeTab === 'recipes' ? 'primary' : 'secondary'} size="sm" onClick={() => selectTab('recipes')}>Recipes</Button>
+          <Button variant={activeTab === 'plan' ? 'primary' : 'secondary'} size="sm" onClick={() => selectTab('plan')}>Meal Plan</Button>
+          <Button variant={activeTab === 'grocery' ? 'primary' : 'secondary'} size="sm" onClick={() => selectTab('grocery')}>Groceries</Button>
+          <Link to="/grocery-list" className="os-btn os-btn-secondary">Open grocery list</Link>
+        </div>
+      </div>
       <PageContainer>
         <SectionHeader
           title="Meal Operations"
-          subtitle="Plan meals and generate groceries from planned dishes."
-          actions={
-            <div className="flex gap-2">
-              <Button variant={activeTab === 'recipes' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('recipes')}>Recipes</Button>
-              <Button variant={activeTab === 'plan' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('plan')}>Meal Plan</Button>
-              <Button variant={activeTab === 'grocery' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('grocery')}>Groceries</Button>
-            </div>
-          }
+          subtitle="Add dishes to the plan, then generate a grocery list from those meals."
         />
         {error ? <Card className="mb-4 border-rose-900 bg-rose-900/20 text-rose-300">{error}</Card> : null}
 
@@ -201,9 +226,17 @@ const MealPlanning = () => {
 
         {activeTab === 'plan' && (
           <Card>
-            <h3 className="mb-4">This Week</h3>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="mb-0">This Week</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="secondary" onClick={() => selectTab('recipes')}>Add dishes</Button>
+                <Button size="sm" onClick={() => onGenerateGrocery({ goToList: true })}>
+                  Generate grocery list
+                </Button>
+              </div>
+            </div>
             <div className="space-y-3">
-              {mealPlans.length === 0 ? <p className="app-muted">No planned meals.</p> : mealPlans.map((plan) => (
+              {mealPlans.length === 0 ? <p className="app-muted">No planned meals. Add a recipe to the plan first.</p> : mealPlans.map((plan) => (
                 <div key={plan.id} className="flex items-center justify-between rounded-ui border border-app-border bg-app-bg-primary px-3 py-2">
                   <div>
                     <p className="text-sm">{plan.recipe_name}</p>
@@ -218,6 +251,9 @@ const MealPlanning = () => {
                 </div>
               ))}
             </div>
+            {groceryMessage ? (
+              <p className={`mt-4 text-sm ${groceryMessage.startsWith('Added') ? 'text-emerald-400' : 'app-muted'}`}>{groceryMessage}</p>
+            ) : null}
           </Card>
         )}
 
@@ -225,7 +261,11 @@ const MealPlanning = () => {
           <Card>
             <h3 className="mb-2">Generate Grocery List</h3>
             <p className="app-muted mb-4">Creates grocery items from your next 7 days of meal plans. Only items you don’t already have in inventory or on your grocery list are added.</p>
-            <Button onClick={onGenerateGrocery}>Generate Grocery List</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => onGenerateGrocery({ goToList: true })}>Generate and open list</Button>
+              <Button variant="secondary" onClick={() => onGenerateGrocery({ goToList: false })}>Generate only</Button>
+              <Link to="/grocery-list" className="os-btn os-btn-secondary">Open grocery list</Link>
+            </div>
             {groceryMessage ? (
               <p className={`mt-4 text-sm ${groceryMessage.startsWith('Added') ? 'text-emerald-400' : 'app-muted'}`}>{groceryMessage}</p>
             ) : null}

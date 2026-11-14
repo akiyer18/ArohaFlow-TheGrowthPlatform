@@ -8,8 +8,8 @@ const PRIMARY_NAV = [
   { to: '/calendar', label: 'Calendar' },
   { to: '/goals', label: 'Goals' },
   { to: '/applications', label: 'Applications' },
-  { to: '/money-tracker', label: 'Money' },
-  { to: '/meal-planning', label: 'Food' },
+  { to: '/money', label: 'Money' },
+  { to: '/food', label: 'Food' },
   { to: '/habits', label: 'Habits' },
   { to: '/more-tools', label: 'More tools' },
 ];

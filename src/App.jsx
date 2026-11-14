@@ -18,6 +18,7 @@ import ApplicationsPage from './os/ApplicationsPage';
 import HabitsPage from './os/HabitsPage';
 import AllowlistPage from './os/AllowlistPage';
 import MoreToolsPage from './os/MoreToolsPage';
+import MoneyPage from './os/MoneyPage';
 
 const MoneyTracker = lazy(() => import('./pages/MoneyTracker'));
 const TaskManager = lazy(() => import('./pages/TaskManager'));
@@ -73,13 +74,29 @@ function App() {
                 <Route path="/habits" element={<HabitsPage />} />
                 <Route path="/allowlist" element={<AllowlistPage />} />
                 <Route path="/more-tools" element={<MoreToolsPage />} />
+                <Route path="/money" element={<MoneyPage />} />
+                <Route path="/food" element={<Navigate to="/meal-planning?tab=plan" replace />} />
+                <Route
+                  path="/meal-planning"
+                  element={
+                    <Suspense fallback={<div className="os-state">Loading Food…</div>}>
+                      <MealPlanning />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="/grocery-list"
+                  element={
+                    <Suspense fallback={<div className="os-state">Loading grocery list…</div>}>
+                      <GroceryList />
+                    </Suspense>
+                  }
+                />
               </Route>
 
               <Route path="/dashboard" element={<LegacyFrame><Dashboard /></LegacyFrame>} />
               <Route path="/money-tracker" element={<LegacyFrame><MoneyTracker /></LegacyFrame>} />
               <Route path="/task-manager" element={<LegacyFrame><TaskManager /></LegacyFrame>} />
-              <Route path="/meal-planning" element={<LegacyFrame><MealPlanning /></LegacyFrame>} />
-              <Route path="/grocery-list" element={<LegacyFrame><GroceryList /></LegacyFrame>} />
               <Route path="/habit-tracker" element={<LegacyFrame><HabitTracker /></LegacyFrame>} />
               <Route path="/flow-mode" element={<LegacyFrame><FlowMode /></LegacyFrame>} />
               <Route path="/journal" element={<LegacyFrame><Journal /></LegacyFrame>} />

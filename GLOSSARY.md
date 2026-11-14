@@ -139,3 +139,39 @@ _Avoid_: open project
 **Active Microaction**:
 The single Microaction currently in progress on Today. At most one at a time; starting another requires completing or parking the current one (park needs a short reason).
 _Avoid_: current task, focus item (vague)
+
+**Income** (Money):
+Sum of income transactions in the selected calendar month on the Money module overview.
+_Avoid_: cash in, deposits (bank CSV dialect)
+
+**Spent** (Money):
+Sum of expense transactions in the selected calendar month on the Money module overview.
+_Avoid_: outflow, burn (informal)
+
+**Planned** (Money):
+Sum of planned expense costs whose target date falls in the selected calendar month.
+_Avoid_: budget total (ambiguous with category budgets)
+
+**Saved** (Money):
+Income minus Spent for the selected calendar month on the Money glance.
+_Avoid_: net worth, balance (account balance is separate)
+
+**Needs** (Money):
+Spend bucket for essentials (bills, groceries, transport, rent). Part of the editable Needs / Wants / Future split; default target 50% of Income.
+_Avoid_: fixed costs (too narrow)
+
+**Wants** (Money):
+Spend bucket for discretionary lifestyle (entertainment, shopping, dining). Default target 40% of Income when Future is 10%.
+_Avoid_: nice-to-haves (informal only)
+
+**Future** (Money):
+Savings / buffer / own-account transfer bucket. Default target 10% of Income (Nibud-informed).
+_Avoid_: investments portfolio (out of scope)
+
+**Buffer** (Money):
+User-set emergency savings goal with progress against current account balance (Nibud BufferBerekenaar-informed framing). Separate from months-of-expenses runway.
+_Avoid_: rainy-day fund (OK in prose), net worth
+
+**Runway** (Money):
+Months of expenses covered by current balance (`balance / Spent` for the selected month). Shown beside Buffer, not as the Buffer progress itself.
+_Avoid_: burn rate (startup jargon)
