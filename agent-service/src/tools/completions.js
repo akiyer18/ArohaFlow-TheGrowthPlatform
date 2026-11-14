@@ -6,9 +6,22 @@ const MICROACTION_POINTS = 20;
 const OVERACHIEVEMENT_POINTS = 20;
 const ACTION_POINTS = 100;
 
-/** Work-window end aligned with Fixed Block rhythm (UTC). */
-function workWindowEndMs(dateKey) {
-  return Date.parse(`${dateKey}T18:00:00.000Z`);
+const WORK_ZONE = 'Europe/Amsterdam';
+const WORK_END_MINUTES = 18 * 60;
+
+const amsterdamTimeParts = new Intl.DateTimeFormat('en-GB', {
+  timeZone: WORK_ZONE,
+  hour: 'numeric',
+  minute: 'numeric',
+  hourCycle: 'h23',
+});
+
+/** True when instant is strictly before 18:00 Europe/Amsterdam (DST-aware). */
+function isBeforeAmsterdamWorkEnd(instant) {
+  const parts = amsterdamTimeParts.formatToParts(instant);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  return hour * 60 + minute < WORK_END_MINUTES;
 }
 
 function plannedMicroactionIds(dayPlan) {
@@ -66,10 +79,10 @@ export async function completeMicroaction(deps, input) {
   const locked = dayPlan?.status === DayPlanStatus.LOCKED;
   const isSurplus = locked && !planned.has(input.microactionId);
   const at = clock.now();
-  const beforeWorkEnd = at.getTime() < workWindowEndMs(dateKey);
+  const beforeWorkEnd = isBeforeAmsterdamWorkEnd(at);
 
   if (isSurplus) {
-    // Surplus beyond Locked plan: Overachievement only before 18:00.
+    // Surplus beyond Locked plan: Overachievement only before 18:00 Europe/Amsterdam.
     if (!beforeWorkEnd) {
       return { awarded: 0, dailyPoints: await store.getDailyPoints(dateKey) };
     }

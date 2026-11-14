@@ -115,3 +115,32 @@ CREATE TABLE IF NOT EXISTS agent_applications (
 INSERT INTO agent_streak (id, count, freeze_remaining_this_week, freeze_week_key)
 VALUES (1, 0, 1, NULL)
 ON CONFLICT (id) DO NOTHING;
+
+-- RLS safety (solo Agent Store): enable RLS with no policies for anon/authenticated.
+-- PostgREST clients using the anon or user JWT see nothing. The Agent Service uses
+-- AROHAFLOW_SUPABASE_SERVICE_ROLE_KEY, which bypasses RLS. Idempotent re-apply is safe.
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'agent_day_plans',
+    'agent_day_plan_changes',
+    'agent_email_digest_items',
+    'agent_calendar_events',
+    'agent_daily_points',
+    'agent_completions',
+    'agent_streak',
+    'agent_streak_days',
+    'agent_activity',
+    'agent_habit_checkins',
+    'agent_habits',
+    'agent_sender_allowlist',
+    'agent_goals',
+    'agent_weekly_plan_proposals',
+    'agent_applications'
+  ]
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END $$;

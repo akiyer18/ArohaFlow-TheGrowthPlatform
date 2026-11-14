@@ -61,7 +61,7 @@ A Completion granted at the start of a day when the user locked that day’s Day
 _Avoid_: show-up bonus, planning XP, time-credit
 
 **Overachievement Completion**:
-A Completion for surplus finished Microactions beyond the Locked Day Plan’s planned set. Awards Daily Points only when completed before 18:00 (work-window end); at or after 18:00 the Microaction may still complete but grants no Overachievement points. Planned Completions keep normal weights at any hour (ADR-0002 / ADR-0003).
+A Completion for surplus finished Microactions beyond the Locked Day Plan’s planned set. Awards Daily Points only when completed before 18:00 Europe/Amsterdam (work-window end, DST-aware); at or after 18:00 local the Microaction may still complete but grants no Overachievement points. Planned Completions keep normal weights at any hour (ADR-0002 / ADR-0003).
 _Avoid_: overtime bonus, time-in-seat points
 
 **Intention**:

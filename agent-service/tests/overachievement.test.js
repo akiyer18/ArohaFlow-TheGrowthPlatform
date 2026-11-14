@@ -73,8 +73,9 @@ describe('Overachievement Completions (#34)', () => {
     );
   });
 
-  it('does not award Overachievement for surplus Completion at or after 18:00', async () => {
-    const clock = createFixedClock(new Date('2026-11-12T18:00:00.000Z'));
+  it('does not award Overachievement for surplus Completion at or after 18:00 Europe/Amsterdam', async () => {
+    // Nov 2026 is CET (UTC+1): 18:00 Amsterdam = 17:00Z
+    const clock = createFixedClock(new Date('2026-11-12T17:00:00.000Z'));
     const store = createMemoryStore();
     await seedTree(store, ['planned', 'surplus']);
     await lockPlanWithMicros(store, '2026-11-12', ['planned']);
@@ -89,8 +90,8 @@ describe('Overachievement Completions (#34)', () => {
     expect((await store.getMicroaction('surplus')).status).toBe(MicroactionStatus.COMPLETED);
   });
 
-  it('still awards normal Microaction weight for planned Completion after 18:00', async () => {
-    const clock = createFixedClock(new Date('2026-11-12T19:30:00.000Z'));
+  it('still awards normal Microaction weight for planned Completion after 18:00 Europe/Amsterdam', async () => {
+    const clock = createFixedClock(new Date('2026-11-12T18:30:00.000Z'));
     const store = createMemoryStore();
     await seedTree(store, ['planned']);
     await lockPlanWithMicros(store, '2026-11-12', ['planned']);
@@ -140,5 +141,59 @@ describe('Overachievement Completions (#34)', () => {
     expect(
       (await store.listCompletions('2026-11-12')).filter((e) => e.type === 'overachievement'),
     ).toHaveLength(1);
+  });
+
+  it('winter (CET): awards before 18:00 Europe/Amsterdam and refuses at 18:00', async () => {
+    // 2026-01-15 is CET (UTC+1): 18:00 Amsterdam = 17:00Z
+    const storeBefore = createMemoryStore();
+    await seedTree(storeBefore, ['planned', 'surplus']);
+    await lockPlanWithMicros(storeBefore, '2026-01-15', ['planned']);
+    const before = createAgentService({
+      clock: createFixedClock(new Date('2026-01-15T16:59:00.000Z')),
+      store: storeBefore,
+    });
+    expect((await before.completeMicroaction({ microactionId: 'surplus' })).awarded).toBe(20);
+    const todayBefore = await before.listToday();
+    expect(todayBefore.dailyPoints).toBe(20);
+    expect(todayBefore.pointsExplanation.filter((e) => e.type === 'overachievement')).toHaveLength(1);
+
+    const storeAt = createMemoryStore();
+    await seedTree(storeAt, ['planned', 'surplus']);
+    await lockPlanWithMicros(storeAt, '2026-01-15', ['planned']);
+    const atCutoff = createAgentService({
+      clock: createFixedClock(new Date('2026-01-15T17:00:00.000Z')),
+      store: storeAt,
+    });
+    expect((await atCutoff.completeMicroaction({ microactionId: 'surplus' })).awarded).toBe(0);
+    const todayAt = await atCutoff.listToday();
+    expect(todayAt.dailyPoints).toBe(0);
+    expect(todayAt.pointsExplanation.filter((e) => e.type === 'overachievement')).toHaveLength(0);
+  });
+
+  it('summer (CEST): awards before 18:00 Europe/Amsterdam and refuses at 18:00', async () => {
+    // 2026-07-15 is CEST (UTC+2): 18:00 Amsterdam = 16:00Z
+    const storeBefore = createMemoryStore();
+    await seedTree(storeBefore, ['planned', 'surplus']);
+    await lockPlanWithMicros(storeBefore, '2026-07-15', ['planned']);
+    const before = createAgentService({
+      clock: createFixedClock(new Date('2026-07-15T15:59:00.000Z')),
+      store: storeBefore,
+    });
+    expect((await before.completeMicroaction({ microactionId: 'surplus' })).awarded).toBe(20);
+    const todayBefore = await before.listToday();
+    expect(todayBefore.dailyPoints).toBe(20);
+    expect(todayBefore.pointsExplanation.filter((e) => e.type === 'overachievement')).toHaveLength(1);
+
+    const storeAt = createMemoryStore();
+    await seedTree(storeAt, ['planned', 'surplus']);
+    await lockPlanWithMicros(storeAt, '2026-07-15', ['planned']);
+    const atCutoff = createAgentService({
+      clock: createFixedClock(new Date('2026-07-15T16:00:00.000Z')),
+      store: storeAt,
+    });
+    expect((await atCutoff.completeMicroaction({ microactionId: 'surplus' })).awarded).toBe(0);
+    const todayAt = await atCutoff.listToday();
+    expect(todayAt.dailyPoints).toBe(0);
+    expect(todayAt.pointsExplanation.filter((e) => e.type === 'overachievement')).toHaveLength(0);
   });
 });
