@@ -73,6 +73,9 @@ export default function MoneyPage() {
       bucketTargets: overview.bucketTargets,
       buffer: overview.buffer,
       runwayMonths: overview.runwayMonths,
+      spendingAccount: overview.spendingAccount,
+      savingsAccount: overview.savingsAccount,
+      transferSuggestion: overview.transferSuggestion,
     });
     if (overview.bucketTargets) setTargetsDraft(overview.bucketTargets);
     if (overview.buffer) setBufferGoalDraft(String(overview.buffer.goal || ''));
@@ -203,6 +206,56 @@ export default function MoneyPage() {
               <span>Saved</span>
             </div>
           </div>
+          {(glance.spendingAccount || glance.savingsAccount) && (
+            <p className="os-meta" style={{ marginTop: 'var(--space-sm)' }}>
+              Spending {formatMoney(glance.spendingAccount?.balance)} · Savings{' '}
+              {formatMoney(glance.savingsAccount?.balance)}
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {status === 'full' && glance?.transferSuggestion ? (
+        <section className="os-panel" aria-labelledby="money-transfer-heading">
+          <h2 id="money-transfer-heading" className="os-panel-title">
+            Month-start transfer
+          </h2>
+          <p className="os-meta">
+            Planned month need minus Spending balance · Savings ↔ Spending transfers stay out of
+            Income and Spent
+          </p>
+          {glance.transferSuggestion.needed ? (
+            <div className="os-figures" aria-label="Transfer suggestion">
+              <div className="os-figure">
+                <strong>{formatMoney(glance.transferSuggestion.amount)}</strong>
+                <span>Transfer Savings → Spending</span>
+              </div>
+              <div className="os-figure">
+                <strong>{formatMoney(glance.transferSuggestion.savingsAfterTransfer)}</strong>
+                <span>Savings after transfer</span>
+              </div>
+              <div className="os-figure">
+                <strong>
+                  {glance.transferSuggestion.planRunwayMonths == null
+                    ? '—'
+                    : `${glance.transferSuggestion.planRunwayMonths.toFixed(1)} mo`}
+                </strong>
+                <span>Runway at plan</span>
+              </div>
+            </div>
+          ) : (
+            <p className="os-meta" style={{ marginTop: 'var(--space-sm)' }}>
+              No transfer needed · Spending covers this month’s plan (
+              {formatMoney(glance.transferSuggestion.plannedTotal)})
+            </p>
+          )}
+          {glance.transferSuggestion.belowBufferGoal ? (
+            <p className="os-meta" role="status" style={{ marginTop: 'var(--space-sm)' }}>
+              Warning: Savings after transfer (
+              {formatMoney(glance.transferSuggestion.savingsAfterTransfer)}) falls below your Buffer
+              goal ({formatMoney(glance.transferSuggestion.bufferGoal)}).
+            </p>
+          ) : null}
         </section>
       ) : null}
 
@@ -212,7 +265,7 @@ export default function MoneyPage() {
             Buffer and runway
           </h2>
           <p className="os-meta">
-            Buffer progress toward your emergency goal · months of expenses covered separately
+            Buffer uses Savings balance · Runway from Spent separately
           </p>
           <div className="os-figures" aria-label="Buffer and runway">
             <div className="os-figure">

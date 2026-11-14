@@ -169,9 +169,21 @@ Savings / buffer / own-account transfer bucket. Default target 10% of Income (Ni
 _Avoid_: investments portfolio (out of scope)
 
 **Buffer** (Money):
-User-set emergency savings goal with progress against current account balance (Nibud BufferBerekenaar-informed framing). Separate from months-of-expenses runway.
+User-set emergency savings goal with progress against the **Savings** account balance (Nibud BufferBerekenaar-informed framing). Separate from months-of-expenses Runway.
 _Avoid_: rainy-day fund (OK in prose), net worth
 
 **Runway** (Money):
-Months of expenses covered by current balance (`balance / Spent` for the selected month). Shown beside Buffer, not as the Buffer progress itself.
+Months of expenses covered by Savings (`savings balance / Spent` for the selected month). Plan Runway after a suggested transfer uses Savings-after-transfer / month plan total. Shown beside Buffer, not as the Buffer progress itself.
 _Avoid_: burn rate (startup jargon)
+
+**Spending account** (Money):
+The day-to-day account (type `spending` / checking) funded for the month’s plan.
+_Avoid_: current account only (OK as bank label)
+
+**Savings account** (Money):
+The buffer / reserve account (type `savings`). Source of month-start transfers into Spending; Buffer progress reads this balance.
+_Avoid_: investment account
+
+**Transfer suggestion** (Money):
+Month-start amount to move from Savings → Spending: month plan total (rent + planned categories + annual costs / 12 + monthly budget lines) minus Spending balance. Zero or less means no transfer. Reports Savings after transfer, Buffer warning, and plan Runway.
+_Avoid_: auto-transfer (suggestion only)

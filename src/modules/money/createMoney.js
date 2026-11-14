@@ -85,16 +85,127 @@ export function statementDedupeKey(row) {
   return `${row.date}|${type}|${amount}|${normalizeDesc(row.description)}`;
 }
 
+/** Classify an account as savings, spending, or unknown. */
+export function accountRole(account) {
+  if (!account) return null;
+  const type = normalizeDesc(account.type);
+  const name = normalizeDesc(account.name);
+  if (
+    type === 'savings' ||
+    type === 'saving' ||
+    name.includes('savings') ||
+    name.includes('spaar')
+  ) {
+    return 'savings';
+  }
+  if (
+    type === 'spending' ||
+    type === 'checking' ||
+    type === 'current' ||
+    type === 'betaal' ||
+    name.includes('spending') ||
+    name.includes('checking') ||
+    name.includes('betaal')
+  ) {
+    return 'spending';
+  }
+  return null;
+}
+
+export function findAccountByRole(accounts, role) {
+  return (accounts || []).find((a) => accountRole(a) === role) || null;
+}
+
 export function isOwnAccountTransfer(row, accounts = []) {
   if (row?.isOwnTransfer === true) return true;
   if (row?.category === 'Transfers') return true;
   const text = `${row?.description || ''} ${row?.merchant || ''}`;
   if (TRANSFER_PATTERN.test(text)) return true;
-  const hints = (accounts || [])
+  const hay = normalizeDesc(text);
+  const named = (accounts || [])
     .map((a) => normalizeDesc(a.name))
     .filter((name) => name.length > 2);
-  const hay = normalizeDesc(text);
-  return hints.some((name) => hay.includes(name));
+  if (named.some((name) => hay.includes(name))) return true;
+
+  // Explicit savings ↔ spending pair (either account name present with transfer cues,
+  // or both roles named in the description).
+  const savings = findAccountByRole(accounts, 'savings');
+  const spending = findAccountByRole(accounts, 'spending');
+  if (savings && spending) {
+    const savingsName = normalizeDesc(savings.name);
+    const spendingName = normalizeDesc(spending.name);
+    const mentionsSavings = savingsName.length > 2 && hay.includes(savingsName);
+    const mentionsSpending = spendingName.length > 2 && hay.includes(spendingName);
+    if (mentionsSavings && mentionsSpending) return true;
+    if (
+      (mentionsSavings || mentionsSpending) &&
+      /\b(to|from|naar|van|transfer|overboeking)\b/i.test(text)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isAnnualPlanned(item) {
+  const freq = normalizeDesc(item?.frequency || item?.period || item?.cadence);
+  return freq === 'annual' || freq === 'yearly' || item?.is_annual === true || item?.isAnnual === true;
+}
+
+function isAnnualBudget(category) {
+  const kind = normalizeDesc(category?.category_type || category?.period || category?.frequency);
+  return kind === 'annual' || kind === 'yearly';
+}
+
+function isMonthlyBudget(category) {
+  const kind = normalizeDesc(category?.category_type || category?.period || category?.frequency);
+  return kind === 'monthly' || kind === 'month' || kind === '';
+}
+
+/** Month funding need: in-month planned + annual/12 + monthly budget categories. */
+export function computeMonthPlanTotal(plannedExpenses, budgetCategories, monthKey) {
+  let total = 0;
+  for (const item of plannedExpenses || []) {
+    if (isAnnualPlanned(item)) {
+      total += absAmount(item.cost || item.annualCost || item.annual_cost) / 12;
+      continue;
+    }
+    if (inMonth(item.target_date ?? item.targetDate, monthKey)) {
+      total += absAmount(item.cost);
+    }
+  }
+  for (const cat of budgetCategories || []) {
+    const amount = absAmount(cat.budget_amount ?? cat.budgetAmount);
+    if (isAnnualBudget(cat)) total += amount / 12;
+    else if (isMonthlyBudget(cat)) total += amount;
+  }
+  return total;
+}
+
+export function buildTransferSuggestion({
+  plannedTotal,
+  spendingBalance,
+  savingsBalance,
+  bufferGoal,
+}) {
+  const planned = Math.max(0, Number(plannedTotal) || 0);
+  const spending = Number(spendingBalance) || 0;
+  const savings = Number(savingsBalance) || 0;
+  const goal = Math.max(0, Number(bufferGoal) || 0);
+  const rawNeed = planned - spending;
+  const amount = rawNeed > 0 ? rawNeed : 0;
+  const savingsAfterTransfer = savings - amount;
+  return {
+    needed: amount > 0,
+    amount,
+    plannedTotal: planned,
+    spendingBalance: spending,
+    savingsBalance: savings,
+    savingsAfterTransfer,
+    belowBufferGoal: goal > 0 && savingsAfterTransfer < goal,
+    bufferGoal: goal,
+    planRunwayMonths: planned > 0 ? savingsAfterTransfer / planned : null,
+  };
 }
 
 function detectSourceBank(file, explicit, parsedBank) {
@@ -218,10 +329,10 @@ export function createMoney(ports) {
         countableStatements.filter((t) => t.type === 'expense'),
         'amount',
       );
-    const planned = sumAmounts(
-      (plannedExpenses ?? []).filter((p) => inMonth(p.target_date ?? p.targetDate, month)),
-      'cost',
+    const plannedMonthRows = (plannedExpenses ?? []).filter(
+      (p) => !isAnnualPlanned(p) && inMonth(p.target_date ?? p.targetDate, month),
     );
+    const planned = sumAmounts(plannedMonthRows, 'cost');
     const saved = income - spent;
 
     const expenseRows = [
@@ -229,14 +340,26 @@ export function createMoney(ports) {
       ...monthStatements.filter((t) => t.type === 'expense'),
     ];
     const buckets = buildBuckets(expenseRows, income, bucketTargets);
+
+    const spendingAccount = findAccountByRole(accounts, 'spending');
+    const savingsAccount = findAccountByRole(accounts, 'savings');
     const goal = Math.max(0, Number(bufferGoal) || 0);
-    const balance = Number(totalBalance) || 0;
+    const savingsBalance = Number(savingsAccount?.balance) || 0;
+    const spendingBalance = Number(spendingAccount?.balance) || 0;
     const buffer = {
       goal,
-      balance,
-      progress: goal > 0 ? Math.min(1, balance / goal) : 0,
+      balance: savingsBalance,
+      progress: goal > 0 ? Math.min(1, savingsBalance / goal) : 0,
     };
-    const runwayMonths = spent > 0 ? balance / spent : null;
+    const runwayMonths = spent > 0 ? savingsBalance / spent : null;
+
+    const plannedTotal = computeMonthPlanTotal(plannedExpenses, budgetCategories, month);
+    const transferSuggestion = buildTransferSuggestion({
+      plannedTotal,
+      spendingBalance,
+      savingsBalance,
+      bufferGoal: goal,
+    });
 
     return {
       month,
@@ -248,6 +371,9 @@ export function createMoney(ports) {
       buckets,
       buffer,
       runwayMonths,
+      spendingAccount,
+      savingsAccount,
+      transferSuggestion,
       accounts,
       transactions,
       budgetCategories,

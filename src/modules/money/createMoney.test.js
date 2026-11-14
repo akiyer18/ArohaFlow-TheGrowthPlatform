@@ -1,9 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createMoney } from './createMoney.js';
+import { createMoney, isOwnAccountTransfer } from './createMoney.js';
+
+function twoAccounts(overrides = {}) {
+  return [
+    { id: 'spend-1', name: 'Spending', type: 'spending', balance: 400, ...overrides.spending },
+    { id: 'save-1', name: 'Savings', type: 'savings', balance: 5000, ...overrides.savings },
+  ];
+}
 
 function fakePorts(overrides = {}) {
   return {
-    getAccounts: vi.fn(async () => [{ id: 'a1', name: 'Checking', balance: 100 }]),
+    getAccounts: vi.fn(async () => twoAccounts()),
     getTransactions: vi.fn(async () => [{ id: 't1', amount: 12 }]),
     getBudgetCategories: vi.fn(async () => []),
     getPlannedExpenses: vi.fn(async () => []),
@@ -32,7 +39,11 @@ function fakePorts(overrides = {}) {
 
 describe('Money module (#2)', () => {
   it('getOverview aggregates accounts, transactions, and balances behind one call', async () => {
-    const money = createMoney(fakePorts());
+    const money = createMoney(
+      fakePorts({
+        getAccounts: vi.fn(async () => [{ id: 'a1', name: 'Checking', type: 'spending', balance: 100 }]),
+      }),
+    );
     const overview = await money.getOverview();
 
     expect(overview.accounts).toHaveLength(1);
@@ -80,7 +91,7 @@ describe('Money module (#2)', () => {
     });
 
     expect(ports.createExpenseTransaction).toHaveBeenCalledOnce();
-    expect(overview.accounts[0].id).toBe('a1');
+    expect(overview.accounts.map((a) => a.id)).toEqual(expect.arrayContaining(['spend-1', 'save-1']));
   });
 
   it('analyzeStatement parses a file and returns analysis', async () => {
@@ -229,10 +240,13 @@ describe('Money module (#2)', () => {
     expect(overview.buckets.wants.targetAmount).toBe(800);
   });
 
-  it('getOverview reports buffer progress and months-of-expenses runway (#42)', async () => {
+  it('getOverview reports buffer progress from savings account balance', async () => {
     const money = createMoney(
       fakePorts({
-        getTotalBalance: vi.fn(async () => 4500),
+        getAccounts: vi.fn(async () =>
+          twoAccounts({ spending: { balance: 400 }, savings: { balance: 4500 } }),
+        ),
+        getTotalBalance: vi.fn(async () => 4900),
         getBufferGoal: vi.fn(async () => 6000),
         getTransactions: vi.fn(async () => [
           { id: 'i1', type: 'income', amount: 3000, date: '2026-11-01', category: 'Income' },
@@ -251,6 +265,8 @@ describe('Money module (#2)', () => {
       progress: 0.75,
     });
     expect(overview.runwayMonths).toBe(3);
+    expect(overview.spendingAccount.balance).toBe(400);
+    expect(overview.savingsAccount.balance).toBe(4500);
   });
 
   it('setBufferGoal persists the buffer target (#42)', async () => {
@@ -261,6 +277,9 @@ describe('Money module (#2)', () => {
         goal = next;
         return next;
       }),
+      getAccounts: vi.fn(async () =>
+        twoAccounts({ spending: { balance: 0 }, savings: { balance: 500 } }),
+      ),
       getTotalBalance: vi.fn(async () => 500),
       getTransactions: vi.fn(async () => []),
       getStatementTransactions: vi.fn(async () => []),
@@ -272,7 +291,166 @@ describe('Money module (#2)', () => {
 
     expect(ports.saveBufferGoal).toHaveBeenCalledWith(2000);
     expect(overview.buffer.goal).toBe(2000);
+    expect(overview.buffer.balance).toBe(500);
     expect(overview.buffer.progress).toBe(0.25);
+  });
+
+  it('detects transfers between savings and spending as own-account transfers', () => {
+    const accounts = twoAccounts();
+    expect(
+      isOwnAccountTransfer(
+        {
+          description: 'Overboeking van Savings naar Spending',
+          merchant: null,
+          category: 'Uncategorized',
+        },
+        accounts,
+      ),
+    ).toBe(true);
+    expect(
+      isOwnAccountTransfer(
+        {
+          description: 'Transfer Spending to Savings',
+          category: 'Uncategorized',
+        },
+        accounts,
+      ),
+    ).toBe(true);
+    expect(
+      isOwnAccountTransfer(
+        { description: 'Albert Heijn', category: 'Groceries' },
+        accounts,
+      ),
+    ).toBe(false);
+  });
+
+  it('getOverview excludes savings↔spending transfers from Income and Spent', async () => {
+    const accounts = twoAccounts();
+    const money = createMoney(
+      fakePorts({
+        getAccounts: vi.fn(async () => accounts),
+        getTransactions: vi.fn(async () => [
+          { id: 'i1', type: 'income', amount: 2000, date: '2026-11-01', category: 'Income' },
+          {
+            id: 't1',
+            type: 'expense',
+            amount: 500,
+            date: '2026-11-02',
+            category: 'Transfers',
+            description: 'Transfer to Spending',
+          },
+          {
+            id: 'e1',
+            type: 'expense',
+            amount: 80,
+            date: '2026-11-03',
+            category: 'Groceries',
+            description: 'Albert Heijn',
+          },
+        ]),
+        getStatementTransactions: vi.fn(async () => []),
+        getPlannedExpenses: vi.fn(async () => []),
+      }),
+    );
+
+    const overview = await money.getOverview({ month: '2026-11' });
+    expect(overview.income).toBe(2000);
+    expect(overview.spent).toBe(80);
+  });
+
+  it('suggests a month-start transfer from savings when spending is short of plan', async () => {
+    const money = createMoney(
+      fakePorts({
+        getAccounts: vi.fn(async () =>
+          twoAccounts({ spending: { balance: 300 }, savings: { balance: 8000 } }),
+        ),
+        getBufferGoal: vi.fn(async () => 5000),
+        getPlannedExpenses: vi.fn(async () => [
+          { id: 'p1', item: 'Rent', cost: 1200, target_date: '2026-11-01', category: 'Rent' },
+          { id: 'p2', item: 'Groceries plan', cost: 400, target_date: '2026-11-01', category: 'Groceries' },
+          {
+            id: 'p3',
+            item: 'Insurance',
+            cost: 600,
+            frequency: 'annual',
+            category: 'Insurance',
+          },
+        ]),
+        getBudgetCategories: vi.fn(async () => [
+          { id: 'b1', name: 'Transit', category_type: 'monthly', budget_amount: 100 },
+        ]),
+        getTransactions: vi.fn(async () => []),
+        getStatementTransactions: vi.fn(async () => []),
+      }),
+    );
+
+    const overview = await money.getOverview({ month: '2026-11' });
+    // plan = rent 1200 + groceries 400 + annual/12 (50) + monthly budget 100 = 1750
+    // transfer = 1750 - 300 = 1450
+    expect(overview.transferSuggestion).toEqual({
+      needed: true,
+      amount: 1450,
+      plannedTotal: 1750,
+      spendingBalance: 300,
+      savingsBalance: 8000,
+      savingsAfterTransfer: 6550,
+      belowBufferGoal: false,
+      bufferGoal: 5000,
+      planRunwayMonths: 6550 / 1750,
+    });
+  });
+
+  it('transfer suggestion is not needed when spending covers the month plan', async () => {
+    const money = createMoney(
+      fakePorts({
+        getAccounts: vi.fn(async () =>
+          twoAccounts({ spending: { balance: 2000 }, savings: { balance: 3000 } }),
+        ),
+        getBufferGoal: vi.fn(async () => 4000),
+        getPlannedExpenses: vi.fn(async () => [
+          { id: 'p1', item: 'Rent', cost: 1200, target_date: '2026-11-01' },
+        ]),
+        getBudgetCategories: vi.fn(async () => []),
+        getTransactions: vi.fn(async () => []),
+        getStatementTransactions: vi.fn(async () => []),
+      }),
+    );
+
+    const overview = await money.getOverview({ month: '2026-11' });
+    expect(overview.transferSuggestion).toEqual({
+      needed: false,
+      amount: 0,
+      plannedTotal: 1200,
+      spendingBalance: 2000,
+      savingsBalance: 3000,
+      savingsAfterTransfer: 3000,
+      belowBufferGoal: true,
+      bufferGoal: 4000,
+      planRunwayMonths: 3000 / 1200,
+    });
+  });
+
+  it('warns when suggested transfer would drop savings below the buffer goal', async () => {
+    const money = createMoney(
+      fakePorts({
+        getAccounts: vi.fn(async () =>
+          twoAccounts({ spending: { balance: 100 }, savings: { balance: 5200 } }),
+        ),
+        getBufferGoal: vi.fn(async () => 5000),
+        getPlannedExpenses: vi.fn(async () => [
+          { id: 'p1', item: 'Rent', cost: 1200, target_date: '2026-11-01' },
+        ]),
+        getBudgetCategories: vi.fn(async () => []),
+        getTransactions: vi.fn(async () => []),
+        getStatementTransactions: vi.fn(async () => []),
+      }),
+    );
+
+    const overview = await money.getOverview({ month: '2026-11' });
+    expect(overview.transferSuggestion.needed).toBe(true);
+    expect(overview.transferSuggestion.amount).toBe(1100);
+    expect(overview.transferSuggestion.savingsAfterTransfer).toBe(4100);
+    expect(overview.transferSuggestion.belowBufferGoal).toBe(true);
   });
 
   it('setBucketTargets persists editable split percentages (#40)', async () => {
