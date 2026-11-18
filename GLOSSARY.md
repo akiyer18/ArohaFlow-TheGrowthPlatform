@@ -93,8 +93,20 @@ The user-maintained list of email addresses and domains whose mail is always tre
 _Avoid_: contacts sync (not implied), VIP (marketing term)
 
 **Application**:
-A tracked job application the user is managing (company, role title, link, short notes, status: To apply / Applied / Interviewing / Offer / Rejected). The Application itself is the CRM record. Linking Applications to Microactions under a job-search Action is deferred past v1 shell.
+A tracked job application the user is managing (company, role title, link, short notes, status: To apply / Applied / Interviewing / Offer / Rejected). The Application itself is the CRM record in the Applications **Tracker**. Linking Applications to Microactions under a job-search Action is deferred past v1 shell.
 _Avoid_: job (too vague), opportunity (ambiguous), next step (deferred field)
+
+**Discovery**:
+The Applications OS section (and Agent Service tools) that surfaces career-ops search hits — open/fresh listings with scores, JD text, recency (posted or discovered), and liveness — before the user explicitly promotes one into an Application. Not auto-merged into Tracker; never submits to an ATS.
+_Avoid_: inbox (career-ops file name), job board, scrape results
+
+**Job Profile**:
+A career-ops search archetype (target titles, locations, exclusions, attached CV) used when running Discovery. Owned as adapter-private config under career-ops; ArohaFlow does not invent a second profile store in v1.
+_Avoid_: persona, resume template
+
+**CV Suggestion**:
+Section-level and keyword guidance returned for a Discovery listing so the user can tailor their CV before applying. Guidance only — the human edits the CV; the Agent Service does not invent unverified experience or auto-write claims.
+_Avoid_: rewrite, auto-tailor, ATS submit
 
 **Today**:
 The home execution board after login: Intention, Day Plan, Open next Microaction, explainable Daily Points / Daily Point Target / Streak, and a compact Email Digest card (top 3–5 Important Emails with reasons linking to the full digest). Meals appear only as planned Fixed Blocks. Not a place to invent Goals or review Agent Activity.

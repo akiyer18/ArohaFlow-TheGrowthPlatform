@@ -589,6 +589,52 @@
   color: color-mix(in srgb, var(--color-error) 85%, white);
 }
 
+.os-status-liveness-open {
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-paper));
+  border-color: color-mix(in srgb, var(--color-accent) 36%, transparent);
+  color: var(--color-accent);
+}
+
+.os-status-liveness-uncertain {
+  background: color-mix(in srgb, oklch(82% 0.14 75) 18%, var(--color-paper));
+  border-color: color-mix(in srgb, oklch(82% 0.14 75) 40%, transparent);
+  color: oklch(88% 0.1 75);
+}
+
+.os-status-liveness-expired {
+  background: color-mix(in srgb, var(--color-muted) 20%, var(--color-paper));
+  border-color: color-mix(in srgb, var(--color-muted) 35%, transparent);
+  color: var(--color-ink-2);
+}
+
+.os-segmented {
+  display: inline-flex;
+  gap: var(--space-2xs);
+}
+
+.os-table-row-selected {
+  background: var(--color-paper-3);
+}
+
+.os-body {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.os-plain-list {
+  margin: var(--space-2xs) 0 0;
+  padding-left: 1.1rem;
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+
+.os-plain-list li + li {
+  margin-top: var(--space-2xs);
+}
+
 .os-table-wrap {
   width: 100%;
   overflow-x: auto;

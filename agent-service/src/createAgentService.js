@@ -27,17 +27,26 @@ import {
   upsertApplication,
   deleteApplication,
 } from './tools/applications.js';
+import {
+  runDiscoverySearch,
+  getDiscoveryCvSuggestions,
+  promoteDiscoveryToApplication,
+} from './tools/discovery.js';
 import { upsertGoal, upsertAction, upsertMicroaction } from './tools/goalsAuthoring.js';
+import { assertCareerOpsPort } from './ports/careerOps.js';
 
 /**
  * Agent Service tool facade — primary seam for scheduler, MCP, and tests.
- * @param {{ clock: { todayDateKey(): string, now(): Date }, store: object, gmail?: object, llm?: object, calendarRead?: object, calendarWrite?: object }} deps
+ * @param {{ clock: { todayDateKey(): string, now(): Date }, store: object, gmail?: object, llm?: object, calendarRead?: object, calendarWrite?: object, careerOps?: object }} deps
  */
 export function createAgentService(deps) {
-  const { clock, store, gmail, llm, calendarRead, calendarWrite } = deps;
+  const { clock, store, gmail, llm, calendarRead, calendarWrite, careerOps } = deps;
 
   if (gmail) {
     assertGmailPortIsReadOnly(gmail);
+  }
+  if (careerOps) {
+    assertCareerOpsPort(careerOps);
   }
 
   const facade = {
@@ -157,6 +166,18 @@ export function createAgentService(deps) {
 
     async deleteApplication(input) {
       return deleteApplication({ store }, input);
+    },
+
+    async runDiscoverySearch(input) {
+      return runDiscoverySearch({ store, careerOps, clock }, input ?? {});
+    },
+
+    async getDiscoveryCvSuggestions(input) {
+      return getDiscoveryCvSuggestions({ careerOps }, input ?? {});
+    },
+
+    async promoteDiscoveryToApplication(input) {
+      return promoteDiscoveryToApplication({ store, careerOps }, input ?? {});
     },
 
     async listCalendarView(input) {

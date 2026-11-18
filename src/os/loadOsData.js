@@ -38,6 +38,54 @@ const APPLICATIONS_FIXTURE = [
   },
 ];
 
+const DISCOVERY_FIXTURE = {
+  searchedAt: '2026-11-14T12:00:00.000Z',
+  results: [
+    {
+      id: 'job-demo-acme',
+      company: 'Acme',
+      roleTitle: 'AI Engineer',
+      link: 'https://jobs.acme.example/ai',
+      description: 'Build evaluation pipelines for LLM products.',
+      score: 4.4,
+      postedAt: '2026-11-12',
+      discoveredAt: '2026-11-14',
+      liveness: 'open',
+      alreadyInTracker: false,
+      recencyDate: '2026-11-12',
+    },
+    {
+      id: 'job-demo-maybe',
+      company: 'MaybeCo',
+      roleTitle: 'Data Scientist',
+      link: 'https://jobs.maybeco.example/ds',
+      description: 'Liveness uncertain — confirm before applying.',
+      score: 4.0,
+      postedAt: null,
+      discoveredAt: '2026-11-13',
+      liveness: 'uncertain',
+      alreadyInTracker: false,
+      recencyDate: '2026-11-13',
+    },
+  ],
+};
+
+const DISCOVERY_CV_FIXTURE = {
+  listingId: 'job-demo-acme',
+  sections: [
+    {
+      section: 'experience',
+      suggestion: 'Lead with evaluation-harness ownership in recent roles.',
+    },
+  ],
+  keywords: [
+    {
+      keyword: 'evaluation',
+      experienceHint: 'Highlight offline eval / scoring language.',
+    },
+  ],
+};
+
 export async function loadGoals() {
   if (isAgentHttpConfigured()) return agentFetch('/goals');
   return structuredClone(GOALS_FIXTURE);
@@ -138,4 +186,34 @@ export async function deleteApplication(id) {
     throw new Error('Connect VITE_AGENT_HTTP_URL to delete Applications');
   }
   return agentFetch(`/applications/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function runDiscoverySearch(input = {}) {
+  if (isAgentHttpConfigured()) {
+    return agentFetch('/discovery/search', { method: 'POST', body: input });
+  }
+  return structuredClone(DISCOVERY_FIXTURE);
+}
+
+export async function getDiscoveryCvSuggestions(listingId) {
+  if (isAgentHttpConfigured()) {
+    return agentFetch('/discovery/cv-suggestions', {
+      method: 'POST',
+      body: { listingId },
+    });
+  }
+  return {
+    ...structuredClone(DISCOVERY_CV_FIXTURE),
+    listingId,
+  };
+}
+
+export async function promoteDiscoveryToApplication({ listingId, status = 'to_apply' }) {
+  if (!isAgentHttpConfigured()) {
+    throw new Error('Connect VITE_AGENT_HTTP_URL to promote Discovery into Applications');
+  }
+  return agentFetch('/discovery/promote', {
+    method: 'POST',
+    body: { listingId, status },
+  });
 }

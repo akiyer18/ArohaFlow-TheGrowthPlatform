@@ -120,6 +120,15 @@ export async function createAgentHttpServer(options) {
     if (method === 'DELETE' && appDelete) {
       return agent.deleteApplication({ id: decodeURIComponent(appDelete[1]) });
     }
+    if (method === 'POST' && pathname === '/discovery/search') {
+      return agent.runDiscoverySearch(body ?? {});
+    }
+    if (method === 'POST' && pathname === '/discovery/cv-suggestions') {
+      return agent.getDiscoveryCvSuggestions(body ?? {});
+    }
+    if (method === 'POST' && pathname === '/discovery/promote') {
+      return agent.promoteDiscoveryToApplication(body ?? {});
+    }
     if (method === 'POST' && pathname === '/lock-day-plan') {
       return agent.lockDayPlan(body);
     }

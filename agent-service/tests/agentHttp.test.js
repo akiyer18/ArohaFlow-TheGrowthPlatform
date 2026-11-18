@@ -44,6 +44,40 @@ function fakeFacade() {
     async scheduleMicroaction(input) {
       return { date: input.date, status: 'proposed', blocks: [{ microactionId: input.microactionId }] };
     },
+    async runDiscoverySearch() {
+      return {
+        searchedAt: '2026-11-14T12:00:00.000Z',
+        results: [
+          {
+            id: 'job-1',
+            company: 'Acme',
+            roleTitle: 'AI Engineer',
+            link: 'https://jobs.acme.example/ai',
+            score: 4.4,
+            liveness: 'open',
+            alreadyInTracker: false,
+            recencyDate: '2026-11-12',
+          },
+        ],
+      };
+    },
+    async getDiscoveryCvSuggestions(input) {
+      return {
+        listingId: input.listingId,
+        sections: [{ section: 'experience', suggestion: 'Lead with eval work.' }],
+        keywords: [{ keyword: 'evaluation', experienceHint: 'Use eval language.' }],
+      };
+    },
+    async promoteDiscoveryToApplication(input) {
+      return {
+        id: 'app-discovery-job-1',
+        company: 'Acme',
+        roleTitle: 'AI Engineer',
+        link: 'https://jobs.acme.example/ai',
+        notes: '',
+        status: input.status || 'to_apply',
+      };
+    },
   };
 }
 
@@ -192,6 +226,50 @@ describe('Agent HTTP (#13)', () => {
     expect(await scheduleRes.json()).toMatchObject({
       date: '2026-11-16',
       status: 'proposed',
+    });
+  });
+
+  it('maps Discovery routes onto the facade (#46)', async () => {
+    const agent = fakeFacade();
+    const started = await createAgentHttpServer({
+      agent,
+      host: '127.0.0.1',
+      port: 0,
+    });
+    server = started.server;
+    const { port } = started;
+    const base = `http://127.0.0.1:${port}`;
+
+    const searchRes = await fetch(`${base}/discovery/search`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(searchRes.status).toBe(200);
+    expect(await searchRes.json()).toMatchObject({
+      results: [{ id: 'job-1', company: 'Acme', liveness: 'open' }],
+    });
+
+    const tipsRes = await fetch(`${base}/discovery/cv-suggestions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ listingId: 'job-1' }),
+    });
+    expect(tipsRes.status).toBe(200);
+    expect(await tipsRes.json()).toMatchObject({
+      listingId: 'job-1',
+      sections: [{ section: 'experience' }],
+    });
+
+    const promoteRes = await fetch(`${base}/discovery/promote`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ listingId: 'job-1', status: 'to_apply' }),
+    });
+    expect(promoteRes.status).toBe(200);
+    expect(await promoteRes.json()).toMatchObject({
+      id: 'app-discovery-job-1',
+      status: 'to_apply',
     });
   });
 });
