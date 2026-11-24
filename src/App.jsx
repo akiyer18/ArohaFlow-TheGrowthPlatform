@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import OsShell from './os/OsShell';
 import TodayPage from './os/TodayPage';
+import HabitsPage from './os/HabitsPage';
 import EmailDigestPage from './os/EmailDigestPage';
 import AnalyticsPage from './os/AnalyticsPage';
 import CalendarViewPage from './os/CalendarViewPage';
@@ -61,6 +62,7 @@ function App() {
                 }
               >
                 <Route path="/today" element={<TodayPage />} />
+                <Route path="/habits" element={<HabitsPage />} />
                 <Route path="/email-digest" element={<EmailDigestPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/calendar" element={<CalendarViewPage />} />

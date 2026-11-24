@@ -1,0 +1,57 @@
+[
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "coral",
+  "axes": "light/grotesk-sans/warm",
+  "hero": "none",
+  "nav": "kept",
+  "footer": "none",
+  "imagery": "product built",
+  "photos": [],
+  "entry": "route crossfade",
+  "fingerprint": "habits-cards-strip-gradescale-side",
+  "sections": [
+   "head with grade",
+   "grade scale",
+   "habit cards",
+   "on a season",
+   "gone quiet"
+  ],
+  "signature": "habit card with 14-day strip and pressed coral Done",
+  "waived": [
+   "11"
+  ],
+  "prompt": "Habits screen: rolling consistency, minimum version, seasons, weekly grade",
+  "date": "2026-11-24",
+  "mode": "build"
+ },
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "coral",
+  "axes": "light/grotesk-sans/warm",
+  "hero": "none",
+  "nav": "top bar groove with sliding cotton card",
+  "footer": "none",
+  "imagery": "product built",
+  "photos": [],
+  "entry": "route crossfade",
+  "fingerprint": "today-list-daycolumn-rail",
+  "sections": [
+   "head",
+   "rhythm",
+   "day plan list",
+   "day column",
+   "rail"
+  ],
+  "signature": "Day Plan list beside its day column",
+  "waived": [
+   "11",
+   "74"
+  ],
+  "prompt": "Today screen, calm planning (Sunsama-style), flow between screens",
+  "date": "2026-11-24",
+  "mode": "build"
+ }
+]

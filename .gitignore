@@ -34,3 +34,4 @@ credentials.json
 .env.development.local
 .env.test.local
 .env.production.local 
+.hallmark/shots/

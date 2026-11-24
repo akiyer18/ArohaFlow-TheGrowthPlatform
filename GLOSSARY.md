@@ -65,8 +65,28 @@ One sentence stating the day’s purpose, written when locking the Day Plan. Rea
 _Avoid_: motto, affirmation, daily theme (marketing)
 
 **Habit Check-in**:
-An explicit user signal that a standing habit was done today (e.g. pressing "went to gym"). Distinct from the Fixed Block that reserved time for it. Awards Daily Points only on check-in.
+An explicit user signal that a standing habit was done today (e.g. pressing "went to gym"), at full or Minimum Version level. Distinct from the Fixed Block that reserved time for it. Awards Daily Points only on check-in: 10 full, 5 minimum (ADR-0010).
 _Avoid_: completion (too generic alone), log (ambiguous with Habit Log in legacy code)
+
+**Minimum Version**:
+The smaller form of a habit that still keeps it on a bad day (Gym → "10-min walk"). Counts as kept for Rolling Consistency and the Weekly Grade; earns half the check-in points.
+_Avoid_: fallback, cheat day, partial habit
+
+**Rolling Consistency**:
+Check-ins over a habit's scheduled days in the last 14 days ("11 of 12"). Unscheduled days, Season days and today before check-in do not count. A miss lowers it by one day; it never resets.
+_Avoid_: streak, chain, success rate
+
+**Season**:
+A deliberate pause of a habit with a reason and end date (travel, sick, exam week). Season days cost nothing and earn nothing.
+_Avoid_: freeze, skip, break
+
+**Quiet habit**:
+A habit with no check-in across its last 14 days and at least 3 scheduled days in that window. Shown apart, left out of the Weekly Grade, never called broken; one action picks it back up.
+_Avoid_: broken, failed, lost streak
+
+**Weekly Grade**:
+The week's habit standing so far: kept scheduled days over scheduled days across habits that are not quiet. Locked in, Strong, Solid, Patchy or Reset (a fresh start, not a failure).
+_Avoid_: score, rank, daily pass/fail
 
 **Daily Points**:
 The single explainable score earned today from Completions, counted toward the Daily Point Target.
@@ -113,8 +133,8 @@ A timed commitment synced from Google Calendar (read-only into ArohaFlow). Day P
 _Avoid_: Block (Blocks are plan segments, not synced meetings)
 
 **Streak**:
-Count of consecutive days the Daily Point Target was met. One freeze per ISO week may preserve the Streak when the target is missed. Distinct from per-habit consistency (unscheduled habit days never break that habit’s consistency).
-_Avoid_: chain, combo
+Retired from the UI by ADR-0010 in favour of Rolling Consistency and the Weekly Grade. Was: consecutive days the Daily Point Target was met, with one freeze per ISO week. The Agent Service `streak` tool remains until the Store carries check-in levels and Seasons.
+_Avoid_: chain, combo, freeze
 
 **Agent Activity**:
 A human-readable log of what the Agent Service last did (syncs, digest size, Day Plan proposed). Lives on Analytics for weekly review — not on Today.

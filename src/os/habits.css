@@ -1,0 +1,425 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Coral (deal 1/3, seed calm-personal-day-planner-5ffd·749c7d25·2026-11-24·r0) · redesign: full
+ * nav: kept (OsShell) · signature: habit cards with a 14-day strip and a pressed coral Done, the week graded on a groove scale · states: loading, empty, error, full
+ * axes: light/grotesk-sans/warm · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: E, writes stay local until the Store carries check-in levels and Seasons */
+
+.hb {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+/* ---------- Head: title and the week's grade ---------- */
+
+.hb-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.hb-head-text {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.hb-h1 {
+  font-size: var(--text-3xl);
+  line-height: 1.02;
+}
+
+.hb-lead {
+  font-size: var(--text-lg);
+  color: var(--color-ink-2);
+}
+
+.hb-grade {
+  display: grid;
+  gap: var(--space-2xs);
+  justify-items: end;
+  text-align: right;
+}
+
+.hb-grade-word {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-display);
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+/* ---------- The grade scale: a groove with the current grade raised ---------- */
+
+.hb-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: var(--space-2xs);
+  list-style: none;
+  border-radius: 12px;
+  background: var(--color-paper-2);
+  box-shadow: var(--press-groove);
+}
+
+.hb-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 var(--space-xs);
+  border-radius: var(--radius-stock);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: center;
+}
+
+.hb-step.is-current {
+  background: var(--color-cotton);
+  color: var(--color-print);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+}
+
+.hb-notice {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-input);
+  background: var(--color-paper-2);
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+
+/* ---------- Grid ---------- */
+
+.hb-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
+  gap: var(--space-xl);
+  align-items: start;
+  padding-top: var(--space-md);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.hb-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.hb-section-title {
+  font-size: var(--text-lg);
+}
+
+.hb-side-title {
+  font-size: var(--text-title);
+}
+
+/* ---------- Habit cards ---------- */
+
+.hb-cards {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hb-card {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  border-radius: var(--radius-card);
+  background: var(--color-cotton);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+}
+
+.hb-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.hb-card-name {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.hb-title {
+  font-size: var(--text-lg);
+}
+
+.hb-consistency {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: var(--space-2xs);
+  justify-items: end;
+  text-align: right;
+}
+
+.hb-consistency .os-fig {
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.hb-of {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  justify-self: start;
+}
+
+.hb-consistency-label {
+  grid-column: 1 / -1;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+/* ---------- The 14-day strip ---------- */
+
+.hb-strip {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hb-day {
+  height: 16px;
+  border-radius: 4px;
+  background: var(--color-paper-2);
+}
+
+.hb-day.is-full {
+  background: var(--color-accent);
+}
+
+.hb-day.is-minimum {
+  background: color-mix(in oklab, var(--color-accent) 45%, var(--color-cotton));
+}
+
+.hb-day.is-missed {
+  background: var(--color-paper-3);
+}
+
+.hb-day.is-season {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-paper-2) 0 3px,
+    var(--color-paper-3) 3px 6px
+  );
+}
+
+.hb-day.is-off {
+  background: transparent;
+  box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule);
+}
+
+.hb-day.is-open {
+  background: var(--color-cotton);
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
+}
+
+/* ---------- Card foot: check in, the pressed Done ---------- */
+
+.hb-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.hb-pressed {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--text-lg);
+  color: var(--color-paid);
+  text-shadow: 0 1px 0 var(--color-cotton), 0 -0.5px 0 color-mix(in oklab, var(--color-paid) 60%, var(--color-ink));
+  transform: rotate(-2deg);
+}
+
+.hb-text-btn {
+  min-height: 32px;
+  padding: 0 var(--space-2xs);
+  border: 0;
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--color-rule-2);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-out), text-decoration-color var(--dur-micro) var(--ease-out);
+}
+
+.hb-text-btn:hover {
+  color: var(--color-ink);
+  text-decoration-color: var(--color-accent-2);
+}
+
+.hb-text-btn:active {
+  transform: translateY(1px);
+}
+
+.hb-text-btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.hb-text-btn:disabled {
+  color: var(--color-rule-2);
+  text-decoration-color: transparent;
+  cursor: not-allowed;
+}
+
+.hb-pause {
+  margin-left: auto;
+}
+
+/* ---------- Season form ---------- */
+
+.hb-season-form {
+  display: grid;
+  gap: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.hb-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: var(--space-2xs);
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-paper-2);
+  box-shadow: var(--press-groove);
+}
+
+.hb-reasons legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs) 0;
+}
+
+.hb-reason {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-stock);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-out);
+}
+
+.hb-reason:hover {
+  color: var(--color-ink);
+}
+
+.hb-reason input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hb-reason:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.hb-reason.is-on {
+  background: var(--color-cotton);
+  color: var(--color-print);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+}
+
+.hb-until {
+  display: grid;
+  gap: var(--space-2xs);
+  max-width: 14rem;
+}
+
+.hb-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+/* ---------- Side panels ---------- */
+
+.hb-side {
+  display: grid;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+.hb-side .os-panel {
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+.hb-side .hb-section-head {
+  margin-bottom: var(--space-sm);
+}
+
+.hb-side-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.os-list .hb-side-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 60rem) {
+  .hb-h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .hb-grade {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .hb-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hb-scale {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .hb-step {
+    font-size: var(--text-xs);
+    padding: 0 var(--space-2xs);
+  }
+
+  .hb-pause {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 30rem) {
+  .hb-strip {
+    gap: 2px;
+  }
+}
