@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import OsShell from './os/OsShell';
 import TodayPage from './os/TodayPage';
 import HabitsPage from './os/HabitsPage';
+import ApplicationsPage from './os/ApplicationsPage';
 import EmailDigestPage from './os/EmailDigestPage';
 import AnalyticsPage from './os/AnalyticsPage';
 import CalendarViewPage from './os/CalendarViewPage';
@@ -21,7 +22,6 @@ const MoneyTracker = lazy(() => import('./pages/MoneyTracker'));
 const TaskManager = lazy(() => import('./pages/TaskManager'));
 const MealPlanning = lazy(() => import('./pages/MealPlanning'));
 const GroceryList = lazy(() => import('./pages/GroceryList'));
-const HabitTracker = lazy(() => import('./pages/HabitTracker'));
 const FlowMode = lazy(() => import('./pages/FlowMode'));
 const Journal = lazy(() => import('./pages/Journal'));
 const KnowledgeExpansion = lazy(() => import('./pages/KnowledgeExpansion'));
@@ -76,15 +76,7 @@ function App() {
                     />
                   }
                 />
-                <Route
-                  path="/applications"
-                  element={
-                    <OsPlaceholderPage
-                      title="Applications"
-                      note="Applications UI lands with OS milestone #13. Open Today for the Day Plan."
-                    />
-                  }
-                />
+                <Route path="/applications" element={<ApplicationsPage />} />
                 <Route path="/more-tools" element={<MoreToolsPage />} />
               </Route>
 
@@ -93,7 +85,7 @@ function App() {
               <Route path="/task-manager" element={<LegacyFrame><TaskManager /></LegacyFrame>} />
               <Route path="/meal-planning" element={<LegacyFrame><MealPlanning /></LegacyFrame>} />
               <Route path="/grocery-list" element={<LegacyFrame><GroceryList /></LegacyFrame>} />
-              <Route path="/habit-tracker" element={<LegacyFrame><HabitTracker /></LegacyFrame>} />
+              <Route path="/habit-tracker" element={<Navigate to="/habits" replace />} />
               <Route path="/flow-mode" element={<LegacyFrame><FlowMode /></LegacyFrame>} />
               <Route path="/journal" element={<LegacyFrame><Journal /></LegacyFrame>} />
               <Route path="/knowledge-expansion" element={<LegacyFrame><KnowledgeExpansion /></LegacyFrame>} />

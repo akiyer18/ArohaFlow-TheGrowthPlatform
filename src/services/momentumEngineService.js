@@ -6,6 +6,7 @@
 import { supabase } from '../config/supabase';
 import { logDbError } from '../lib/db/logger';
 import { isRequiredDay } from '../utils/streakUtils';
+import { getHabitsDueOn } from '../modules/habits';
 import { toDateKey } from '../utils/date';
 import { getCurrentUserId } from '../config/supabase';
 
@@ -45,21 +46,23 @@ async function fetchOverdueTasksAsOf(dateStr) {
   return data || [];
 }
 
+/**
+ * Habits due on dateStr from the Habits Store (ADR-0011), in the shape the legacy
+ * score loop expects: every returned habit is required that day; a check-in at
+ * either level counts as one completion.
+ */
 async function fetchDayHabitsAndLogs(dateStr) {
-  const { data: habits, error: habitsError } = await supabase
-    .from('habits')
-    .select('*')
-    .eq('archived', false);
-  if (habitsError) throw habitsError;
-  if (!habits?.length) return { habits: [], logs: [] };
-  const habitIds = habits.map((h) => h.id);
-  const { data: logs, error: logsError } = await supabase
-    .from('habit_logs')
-    .select('*')
-    .in('habit_id', habitIds)
-    .eq('date', dateStr);
-  if (logsError) throw logsError;
-  return { habits, logs: logs || [] };
+  const due = await getHabitsDueOn(dateStr);
+  return {
+    habits: due.map(({ habit }) => ({
+      id: habit.id,
+      start_date: '1970-01-01',
+      frequency_type: 'daily',
+      frequency_value: {},
+      target_per_day: 1,
+    })),
+    logs: due.filter((d) => d.kept).map(({ habit }) => ({ habit_id: habit.id, count: 1 })),
+  };
 }
 
 async function fetchDayMeals(dateStr) {

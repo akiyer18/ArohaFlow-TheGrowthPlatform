@@ -15,6 +15,7 @@ const PRIMARY_NAV = [
   { to: '/habits', label: 'Habits' },
   { to: '/journal', label: 'Journal' },
   { to: '/goals', label: 'Goals' },
+  { to: '/applications', label: 'Applications' },
   { to: '/money-tracker', label: 'Money' },
   { to: '/meal-planning', label: 'Food' },
   { to: '/analytics', label: 'Analytics' },

@@ -56,6 +56,10 @@ describe('MCP tool router', () => {
       'accept_weekly_plan',
       'schedule_microaction',
       'upsert_habit',
+      'list_applications',
+      'add_application',
+      'move_application',
+      'set_application_next_step',
       'list_habits',
       'list_calendar_view',
     ]);

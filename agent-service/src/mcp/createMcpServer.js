@@ -57,6 +57,7 @@ export function createMcpServer(agent) {
       inputSchema: {
         habitId: z.string(),
         label: z.string(),
+        level: z.enum(['full', 'minimum']).optional(),
       },
     },
     async (args) => jsonResult(await router.callTool('log_habit_checkin', args)),
@@ -71,6 +72,49 @@ export function createMcpServer(agent) {
       },
     },
     async (args) => jsonResult(await router.callTool('complete_microaction', args)),
+  );
+
+  const stage = z.enum(['saved', 'applied', 'interviewing', 'offer', 'closed']);
+
+  server.registerTool(
+    'list_applications',
+    { description: descriptions.list_applications, inputSchema: {} },
+    async () => jsonResult(await router.callTool('list_applications')),
+  );
+
+  server.registerTool(
+    'add_application',
+    {
+      description: descriptions.add_application,
+      inputSchema: {
+        company: z.string(),
+        role: z.string(),
+        url: z.string().optional(),
+        stage: stage.optional(),
+        nextStep: z.string().optional(),
+        nextStepDue: z.string().optional(),
+        notes: z.string().optional(),
+      },
+    },
+    async (args) => jsonResult(await router.callTool('add_application', args)),
+  );
+
+  server.registerTool(
+    'move_application',
+    {
+      description: descriptions.move_application,
+      inputSchema: { id: z.string(), toStage: stage, closedReason: z.string().optional() },
+    },
+    async (args) => jsonResult(await router.callTool('move_application', args)),
+  );
+
+  server.registerTool(
+    'set_application_next_step',
+    {
+      description: descriptions.set_application_next_step,
+      inputSchema: { id: z.string(), nextStep: z.string().optional(), nextStepDue: z.string().optional() },
+    },
+    async (args) => jsonResult(await router.callTool('set_application_next_step', args)),
   );
 
   server.registerTool(

@@ -21,6 +21,12 @@ import {
   scheduleMicroaction,
 } from './tools/weeklyPlanAccept.js';
 import { upsertHabit, listHabits, listCalendarView } from './tools/habitCalendar.js';
+import {
+  addApplication,
+  listApplications,
+  moveApplication,
+  setApplicationNextStep,
+} from './tools/applications.js';
 import { assessDayPlanOvercommit } from './tools/overcommit.js';
 
 /**
@@ -110,6 +116,22 @@ export function createAgentService(deps) {
 
     async listHabits() {
       return listHabits({ store });
+    },
+
+    async listApplications() {
+      return listApplications({ store, clock });
+    },
+
+    async addApplication(input) {
+      return addApplication({ store, clock }, input);
+    },
+
+    async moveApplication(input) {
+      return moveApplication({ store, clock }, input);
+    },
+
+    async setApplicationNextStep(input) {
+      return setApplicationNextStep({ store }, input);
     },
 
     async listCalendarView(input) {

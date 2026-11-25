@@ -11,7 +11,9 @@ import {
   weekStart,
   weeklyGrade,
   getHabits,
+  createMemoryHabitsStore,
 } from './index.js';
+import { buildHabitsFixture } from './habitsFixture.js';
 
 const daily = { id: 'read', label: 'Read', scheduledDays: [0, 1, 2, 3, 4, 5, 6] };
 const weekdays = { id: 'gym', label: 'Gym', scheduledDays: [1, 2, 3, 4, 5], minimum: { label: 'Walk' } };
@@ -96,7 +98,7 @@ describe('check-ins and the screen read', () => {
   });
 
   it('groups the fixture into active, Season and quiet', async () => {
-    const data = await getHabits({ asOf });
+    const data = await getHabits({ asOf, store: createMemoryHabitsStore(buildHabitsFixture(asOf)) });
     const view = buildHabitsView(data);
     expect(view.season.map((r) => r.habit.id)).toEqual(['spanish']);
     expect(view.quiet.map((r) => r.habit.id)).toEqual(['journal']);

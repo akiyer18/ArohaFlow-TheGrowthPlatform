@@ -6,6 +6,7 @@ import {
   buildHabitsView,
   checkInPoints,
   getHabits,
+  getHabitsStore,
   setCheckIn,
 } from '../modules/habits';
 import './habits.css';
@@ -27,6 +28,15 @@ const STATUS_LABEL = {
 };
 
 const SEASON_REASONS = ['Travel', 'Sick', 'Exam week', 'Rest'];
+const WEEKDAY_OPTIONS = [
+  { day: 1, label: 'Mon' },
+  { day: 2, label: 'Tue' },
+  { day: 3, label: 'Wed' },
+  { day: 4, label: 'Thu' },
+  { day: 5, label: 'Fri' },
+  { day: 6, label: 'Sat' },
+  { day: 0, label: 'Sun' },
+];
 
 /* ---------- Pieces ---------- */
 
@@ -88,6 +98,78 @@ function SeasonForm({ asOf, onSave, onCancel }) {
         </button>
         <button type="submit" className="os-btn os-btn-primary">
           Start the season
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function NewHabitForm({ onSave, onCancel }) {
+  const [label, setLabel] = useState('');
+  const [days, setDays] = useState([1, 2, 3, 4, 5]);
+  const [timeAnchor, setTimeAnchor] = useState('');
+  const [minimum, setMinimum] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const toggleDay = (day) =>
+    setDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
+
+  return (
+    <form
+      className="hb-new os-panel"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setError(null);
+        try {
+          await onSave({ label, scheduledDays: days, timeAnchor, minimum: { label: minimum } });
+        } catch (err) {
+          setError(err.message);
+          setSaving(false);
+        }
+      }}
+    >
+      <h3 className="hb-side-title">New habit</h3>
+      <label className="hb-field">
+        <span className="os-meta">Name</span>
+        <input className="os-input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Gym" required />
+      </label>
+      <fieldset className="hb-reasons">
+        <legend className="os-meta">Days</legend>
+        {WEEKDAY_OPTIONS.map(({ day, label: dayLabel }) => (
+          <label key={day} className={days.includes(day) ? 'hb-reason is-on' : 'hb-reason'}>
+            <input type="checkbox" checked={days.includes(day)} onChange={() => toggleDay(day)} />
+            {dayLabel}
+          </label>
+        ))}
+      </fieldset>
+      <div className="hb-new-row">
+        <label className="hb-field">
+          <span className="os-meta">Time, optional</span>
+          <input className="os-input" type="time" value={timeAnchor} onChange={(e) => setTimeAnchor(e.target.value)} />
+        </label>
+        <label className="hb-field">
+          <span className="os-meta">Minimum Version for a bad day</span>
+          <input
+            className="os-input"
+            value={minimum}
+            onChange={(e) => setMinimum(e.target.value)}
+            placeholder="10-min walk"
+          />
+        </label>
+      </div>
+      {error ? (
+        <p className="os-warn" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="hb-form-actions">
+        <button type="button" className="os-btn os-btn-secondary" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+        <button type="submit" className="os-btn os-btn-primary" disabled={saving} aria-busy={saving}>
+          {saving ? 'Saving' : 'Add habit'}
         </button>
       </div>
     </form>
@@ -173,6 +255,8 @@ export default function HabitsPage() {
   const [status, setStatus] = useState('loading');
   const [data, setData] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,14 +266,32 @@ export default function HabitsPage() {
         if (cancelled) return;
         setData(payload);
         setStatus(payload.habits.length ? 'full' : 'empty');
-      } catch {
-        if (!cancelled) setStatus('error');
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err.message);
+          setStatus('error');
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  /** Apply a change locally first, write it, and roll back with a message if the write fails. */
+  const commit = async (apply, write, failMessage) => {
+    const before = data;
+    setData((prev) => apply(prev));
+    try {
+      const store = await getHabitsStore();
+      await write(store);
+      return true;
+    } catch (err) {
+      setData(before);
+      setNotice(`${failMessage} ${err.message}`);
+      return false;
+    }
+  };
 
   const view = useMemo(() => (data ? buildHabitsView(data) : null), [data]);
 
@@ -201,30 +303,55 @@ export default function HabitsPage() {
     [data],
   );
 
-  const updateHabit = (habitId, patch) =>
-    setData((prev) => ({
-      ...prev,
-      habits: prev.habits.map((h) => (h.id === habitId ? { ...h, ...patch } : h)),
-    }));
+  const patchHabit = (habitId, patch) => (prev) => ({
+    ...prev,
+    habits: prev.habits.map((h) => (h.id === habitId ? { ...h, ...patch } : h)),
+  });
+  const labelOf = (habitId) => data.habits.find((h) => h.id === habitId)?.label ?? 'Habit';
 
-  const onCheckIn = (habitId, level) =>
-    setData((prev) => ({ ...prev, checkIns: setCheckIn(prev.checkIns, habitId, prev.asOf, level) }));
-
-  const onSeason = (habitId, season) => {
-    updateHabit(habitId, { season });
-    const label = data.habits.find((h) => h.id === habitId)?.label;
-    setNotice(`${label} is on a season until ${formatDay(season.until)}. Nothing counts against it.`);
-  };
-
-  const onResume = (habitId) => {
-    updateHabit(habitId, { season: null });
+  const onCheckIn = (habitId, level) => {
     setNotice(null);
+    return commit(
+      (prev) => ({ ...prev, checkIns: setCheckIn(prev.checkIns, habitId, prev.asOf, level) }),
+      (store) => store.setCheckIn({ habitId, label: labelOf(habitId), date: data.asOf, level }),
+      'The check-in was not saved.',
+    );
   };
 
-  const onPickUp = (habitId) => {
-    updateHabit(habitId, { restartedOn: data.asOf });
-    const label = data.habits.find((h) => h.id === habitId)?.label;
-    setNotice(`${label} starts fresh today. Earlier days no longer count.`);
+  const onSeason = async (habitId, season) => {
+    const ok = await commit(
+      patchHabit(habitId, { season }),
+      (store) => store.updateHabit(habitId, { season }),
+      'The season was not saved.',
+    );
+    if (ok) setNotice(`${labelOf(habitId)} is on a season until ${formatDay(season.until)}. Nothing counts against it.`);
+  };
+
+  const onResume = async (habitId) => {
+    const ok = await commit(
+      patchHabit(habitId, { season: null }),
+      (store) => store.updateHabit(habitId, { season: null }),
+      'The habit was not resumed.',
+    );
+    if (ok) setNotice(null);
+  };
+
+  const onPickUp = async (habitId) => {
+    const ok = await commit(
+      patchHabit(habitId, { restartedOn: data.asOf }),
+      (store) => store.updateHabit(habitId, { restartedOn: data.asOf }),
+      'The fresh start was not saved.',
+    );
+    if (ok) setNotice(`${labelOf(habitId)} starts fresh today. Earlier days no longer count.`);
+  };
+
+  const onCreate = async (input) => {
+    const store = await getHabitsStore();
+    const habit = await store.createHabit(input);
+    setData((prev) => ({ ...prev, habits: [...prev.habits, habit] }));
+    setStatus('full');
+    setAdding(false);
+    setNotice(`${habit.label} added.`);
   };
 
   const week = view?.week;
@@ -277,12 +404,15 @@ export default function HabitsPage() {
         </div>
       ) : status === 'error' ? (
         <div className="os-state" role="alert">
-          Could not load habits. Refresh, or check the Agent Service connection.
+          Could not load habits{loadError ? ` (${loadError})` : ''}. Check that you are signed in and that
+          database/habits-store-migration.sql has been run, then refresh.
         </div>
       ) : status === 'empty' ? (
-        <div className="os-state">
-          No habits yet. A habit needs a name, the days it is scheduled, and ideally a Minimum Version for
-          bad days.
+        <div className="hb-empty">
+          <p className="os-state">
+            No habits yet. Give one a name, the days it is scheduled, and a Minimum Version for bad days.
+          </p>
+          <NewHabitForm onSave={onCreate} onCancel={() => setAdding(false)} />
         </div>
       ) : (
         <div className="hb-grid">
@@ -291,13 +421,21 @@ export default function HabitsPage() {
               <h2 id="hb-today-heading" className="hb-section-title">
                 Today
               </h2>
-              <p className="os-meta">
-                +<span className="os-fig">{pointsToday}</span> points from habits,{' '}
-                <Link to="/today" className="os-inline-link">
-                  see the day
-                </Link>
-              </p>
+              <div className="hb-today-meta">
+                <p className="os-meta">
+                  +<span className="os-fig">{pointsToday}</span> points from habits,{' '}
+                  <Link to="/today" className="os-inline-link">
+                    see the day
+                  </Link>
+                </p>
+                {!adding ? (
+                  <button type="button" className="os-btn os-btn-secondary" onClick={() => setAdding(true)}>
+                    New habit
+                  </button>
+                ) : null}
+              </div>
             </div>
+            {adding ? <NewHabitForm onSave={onCreate} onCancel={() => setAdding(false)} /> : null}
             {view.active.length ? (
               <ul className="hb-cards">
                 {view.active.map((row) => (

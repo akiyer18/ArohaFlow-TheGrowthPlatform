@@ -30,8 +30,6 @@ export * from './mealPlanService';
 // Export all grocery services
 export * from './groceryService';
 
-// Export all habit services
-export * from './habitService';
 
 // Export flow / momentum services (legacy flow score)
 export * from './flowService';

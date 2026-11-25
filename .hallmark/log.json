@@ -10,6 +10,31 @@
   "imagery": "product built",
   "photos": [],
   "entry": "route crossfade",
+  "fingerprint": "applications-nextsteps-followups-board-closed",
+  "sections": [
+   "head with movement",
+   "next steps",
+   "follow-ups",
+   "stage board",
+   "closed"
+  ],
+  "signature": "pipeline as pressed wells holding cotton cards",
+  "waived": [],
+  "prompt": "Applications screen: stage board, next steps, follow-ups",
+  "date": "2026-11-24",
+  "mode": "build"
+ },
+ {
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "coral",
+  "axes": "light/grotesk-sans/warm",
+  "hero": "none",
+  "nav": "kept",
+  "footer": "none",
+  "imagery": "product built",
+  "photos": [],
+  "entry": "route crossfade",
   "fingerprint": "habits-cards-strip-gradescale-side",
   "sections": [
    "head with grade",

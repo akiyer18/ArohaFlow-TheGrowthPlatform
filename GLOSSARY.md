@@ -13,7 +13,7 @@ The server-side background worker that reads external sources on a schedule, app
 _Avoid_: bot, AI assistant, MCP server (MCP is a client interface onto the Agent Service's tools, not the service itself)
 
 **Store**:
-The module the Agent Service (and later the OS UI) uses to read and write life data — Day Plans, Email Digest, Goals, Actions, Microactions, Applications, Habits (scheduled days + time anchors), Habit Check-ins, Daily Points, Calendar Events, Sender Allowlist, Agent Activity. Callers never speak PostgREST; Local/Supabase/in-memory fakes are adapters behind this interface.
+The module the Agent Service and the OS UI use to read and write life data — Day Plans, Email Digest, Goals, Actions, Microactions, Applications, Habits (scheduled days + time anchors), Habit Check-ins, Daily Points, Calendar Events, Sender Allowlist, Agent Activity. Callers never speak PostgREST; Local/Supabase/in-memory fakes are adapters behind this interface.
 _Avoid_: database, repository (OK internally), dataClient, supabase client
 
 **Day Plan**:
@@ -109,7 +109,15 @@ The user-maintained list of email addresses and domains whose mail is always tre
 _Avoid_: contacts sync (not implied), VIP (marketing term)
 
 **Application**:
-A tracked job application the user is managing (company, role, status, next step). May link to Microactions under a job-search Action; the Application itself is the CRM record.
+A tracked job application the user is managing: company, role, stage, next step. Stages are Saved, Applied, Interviewing, Offer and Closed (with a reason: Rejected, Withdrawn, No reply, Accepted). Every stage move is recorded as a stage event. May link to Microactions under a job-search Action; the Application itself is the CRM record (ADR-0012).
+
+**Next step** (Application):
+The one dated thing to do next on an Application ("Send portfolio link", by Friday). Overdue and today's next steps lead the Applications screen.
+_Avoid_: task, reminder
+
+**Follow-up** (Application):
+A nudge, not a failure: an Application waiting on the other side (Applied or Interviewing) with no dated next step and no stage move for 10 days.
+_Avoid_: stale, dead, ghosted (as a state)
 _Avoid_: job (too vague), opportunity (ambiguous)
 
 **Today**:

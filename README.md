@@ -44,7 +44,7 @@ A modern growth and productivity platform that unifies tasks, habits, meals, eve
 | **Smart Calendar**     | `/smart-calendar`     | Unified calendar: month/week view, day detail panel with habits, tasks, meals, events, and knowledge entries. |
 | **Task Manager**      | `/task-manager`      | Create, edit, complete, and delete tasks with due date, priority, category, and status. |
 | **Grocery List**      | `/grocery-list`      | Manage grocery items and inventory; generate list from meal plans. |
-| **Habit Tracker**     | `/habit-tracker`     | Create habits (daily, specific days, or weekly count), log completions, view streaks and contribution grid. |
+| **Habits**            | `/habits`            | Rolling consistency, Minimum Version check-ins, Seasons and a Weekly Grade (ADR-0010). |
 | **Journal**           | `/journal`           | Daily reflection and mood tracking. |
 | **Knowledge Expansion**| `/knowledge-expansion` | Structured learning journal: capture what you learn, tag it, and build a second brain. |
 
@@ -156,7 +156,7 @@ What you need depends on **`VITE_DATA_SOURCE`**.
 
 2. **Run the main schema** in the Supabase **SQL Editor** (New query):
    - Paste and run **`database/init-all.sql`**.
-   - This creates core tables (accounts, transactions, tasks, habits, habit_logs, recipes, meal_plans, grocery_items, calendar_events, etc.), indexes, and RLS policies. Safe to run once (idempotent).
+   - This creates core tables (accounts, transactions, tasks, recipes, meal_plans, grocery_items, calendar_events, etc.), indexes, and RLS policies. Safe to run once (idempotent).
 
 3. **Optional module schemas** (run if you use these features):
    - **Journal:** `database/journal-schema.sql`

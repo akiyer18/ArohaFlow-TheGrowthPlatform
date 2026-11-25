@@ -9,6 +9,7 @@
  * - recordStreakTargetMet / recordStreakMiss
  * - listAgentActivity / appendAgentActivity
  * - listHabits / upsertHabit / getHabitCheckIns / saveHabitCheckIn
+ * - listApplications / upsertApplication / listApplicationEvents / appendApplicationEvent (ADR-0012)
  * - upsertCalendarEvent / listCalendarEvents
  * - listSenderAllowlist / setSenderAllowlist
  * - seedGoals / listGoals / listOpenMicroactions / listActiveActions / completeMicroaction / completeAction
@@ -28,6 +29,10 @@ export const STORE_METHODS = [
   'listAgentActivity',
   'listHabits',
   'upsertHabit',
+  'listApplications',
+  'upsertApplication',
+  'listApplicationEvents',
+  'appendApplicationEvent',
   'getHabitCheckIns',
   'listCalendarEvents',
   'listSenderAllowlist',

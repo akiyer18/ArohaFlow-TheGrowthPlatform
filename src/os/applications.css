@@ -1,0 +1,474 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Coral (deal 1/3, seed calm-personal-day-planner-5ffd·749c7d25·2026-11-24·r0) · redesign: full
+ * nav: kept (OsShell) · signature: the pipeline as four pressed wells holding cotton cards, the dated next steps above · states: loading, empty, error, full
+ * axes: light/grotesk-sans/warm · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: E, stages move by buttons, no drag yet; links to the job-search Action land with Goals */
+
+.ap {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+/* ---------- Head ---------- */
+
+.ap-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-lg);
+}
+
+.ap-head-text {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.ap-h1 {
+  font-size: var(--text-3xl);
+  line-height: 1.02;
+}
+
+.ap-lead {
+  font-size: var(--text-lg);
+  color: var(--color-ink-2);
+}
+
+.ap-head-end {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-lg);
+}
+
+.ap-moved {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-3xs);
+}
+
+.ap-moved .os-fig {
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.ap-notice {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-input);
+  background: var(--color-paper-2);
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+
+.ap-panel-title {
+  font-size: var(--text-title);
+}
+
+.ap-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+/* ---------- Next steps and follow-ups ---------- */
+
+.ap-focus {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.ap-focus .os-panel {
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+}
+
+.os-list .ap-step {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ap-step-text {
+  display: grid;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+.ap-step-when {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.ap-step.is-overdue .ap-step-when,
+.ap-step.is-today .ap-step-when {
+  color: var(--color-accent-2);
+  font-weight: 500;
+}
+
+/* ---------- The board: pressed wells, cotton cards ---------- */
+
+.ap-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.ap-col {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
+  min-height: 12rem;
+  padding: var(--space-sm);
+  border-radius: 12px;
+  background: var(--color-paper-2);
+  box-shadow: var(--press-groove);
+  align-content: start;
+}
+
+.ap-col-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-2xs) var(--space-xs) 0;
+}
+
+.ap-col-title {
+  font-size: var(--text-md);
+}
+
+.ap-col-empty {
+  padding: var(--space-md) var(--space-xs);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.ap-cards {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ap-card {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  border-radius: var(--radius-card);
+  background: var(--color-cotton);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+  min-width: 0;
+}
+
+.ap-card.is-overdue {
+  box-shadow: inset 0 0 0 1.5px var(--color-accent), var(--cast-stock);
+}
+
+.ap-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.ap-company {
+  font-size: var(--text-md);
+  min-width: 0;
+}
+
+.ap-card-head .os-meta {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.ap-role {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  overflow-wrap: break-word;
+}
+
+.ap-next {
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  overflow-wrap: break-word;
+}
+
+.ap-due {
+  margin-right: var(--space-2xs);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.ap-next.is-overdue .ap-due,
+.ap-next.is-today .ap-due {
+  color: var(--color-accent-2);
+}
+
+.ap-when {
+  color: var(--color-muted);
+}
+
+.ap-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-2xs);
+}
+
+.ap-card-foot .ap-text-btn {
+  margin-left: auto;
+}
+
+.ap-text-btn {
+  min-height: 32px;
+  padding: 0 var(--space-2xs);
+  border: 0;
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--color-rule-2);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-out), text-decoration-color var(--dur-micro) var(--ease-out);
+}
+
+.ap-text-btn:hover {
+  color: var(--color-ink);
+  text-decoration-color: var(--color-accent-2);
+}
+
+.ap-text-btn:active {
+  transform: translateY(1px);
+}
+
+.ap-text-btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.ap-text-btn:disabled {
+  color: var(--color-rule-2);
+  cursor: not-allowed;
+}
+
+/* ---------- Card details ---------- */
+
+.ap-detail {
+  display: grid;
+  gap: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.ap-detail-form {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.ap-notes {
+  min-height: 5rem;
+  padding: var(--space-xs) var(--space-sm);
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.ap-move {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.ap-move-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+/* ---------- Forms ---------- */
+
+.ap-add {
+  display: grid;
+  gap: var(--space-md);
+  max-width: 48rem;
+}
+
+.ap-empty {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.ap-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.ap-span-2 {
+  grid-column: 1 / -1;
+}
+
+.ap-field {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.ap-groove {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: var(--space-2xs);
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-paper-2);
+  box-shadow: var(--press-groove);
+}
+
+.ap-groove legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs) 0;
+}
+
+.ap-choice {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-stock);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-out);
+}
+
+.ap-choice:hover {
+  color: var(--color-ink);
+}
+
+.ap-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ap-choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.ap-choice.is-on {
+  background: var(--color-cotton);
+  color: var(--color-print);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+}
+
+.ap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+/* ---------- Closed ---------- */
+
+.ap-closed {
+  padding-top: var(--space-md);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.ap-closed summary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  min-height: 36px;
+  margin-bottom: var(--space-sm);
+  border-radius: var(--radius-input);
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--text-title);
+  list-style: none;
+  cursor: pointer;
+}
+
+.ap-closed summary::-webkit-details-marker {
+  display: none;
+}
+
+.ap-closed summary::after {
+  content: 'Show';
+  margin-left: var(--space-xs);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--color-rule-2);
+  text-underline-offset: 3px;
+}
+
+.ap-closed[open] summary::after {
+  content: 'Hide';
+}
+
+.ap-closed summary:hover::after {
+  color: var(--color-ink);
+}
+
+.ap-closed summary:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.ap-closed .os-list {
+  max-width: 44rem;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 75rem) {
+  .ap-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 60rem) {
+  .ap-h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .ap-focus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ap-head-end {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ap-moved {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 40rem) {
+  .ap-board,
+  .ap-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ap-col {
+    min-height: 0;
+  }
+}

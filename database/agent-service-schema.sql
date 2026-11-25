@@ -85,8 +85,9 @@ CREATE TABLE IF NOT EXISTS agent_habits (
   id TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   scheduled_days JSONB NOT NULL DEFAULT '[]'::jsonb,
-  time_anchor TEXT NOT NULL
+  time_anchor TEXT
 );
+-- Owner, Minimum Version, Season, check-in level and RLS: database/habits-store-migration.sql (ADR-0011).
 
 CREATE TABLE IF NOT EXISTS agent_sender_allowlist (
   id TEXT PRIMARY KEY,
