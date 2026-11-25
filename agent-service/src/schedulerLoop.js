@@ -15,6 +15,7 @@ export function createSchedulerLoop(deps) {
     clock,
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     onRun,
+    onError = (err) => console.error(`Cadence run failed (will retry): ${err?.message ?? err}`),
   } = deps;
 
   /** @type {{ morning: string | null, evening: string | null }} */
@@ -32,14 +33,19 @@ export function createSchedulerLoop(deps) {
     },
 
     /**
-     * Poll until stop(). Default interval 60s.
+     * Poll until stop(). Default interval 60s. A failed run (e.g. expired Google token) is
+     * reported and retried next tick; it never stops the loop or the HTTP bridge.
      * @param {{ intervalMs?: number, maxTicks?: number }} [options]
      */
     async start(options = {}) {
       const intervalMs = options.intervalMs ?? 60_000;
       let ticks = 0;
       while (!stopped) {
-        await this.tick();
+        try {
+          await this.tick();
+        } catch (err) {
+          onError(err);
+        }
         ticks += 1;
         if (options.maxTicks != null && ticks >= options.maxTicks) break;
         if (stopped) break;
