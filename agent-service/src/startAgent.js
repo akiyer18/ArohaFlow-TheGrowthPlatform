@@ -14,7 +14,7 @@ import { createAgentHttpServer } from './http/createAgentHttpServer.js';
 
 loadAgentEnv();
 
-const { agent, clock, store, googleKind } = createLocalAgent();
+const { agent, clock, store, googleKind, careerOpsRoot } = createLocalAgent();
 const scheduler = createScheduler({ agent });
 const loop = createSchedulerLoop({
   scheduler,
@@ -35,6 +35,9 @@ const { port: boundPort } = await createAgentHttpServer({
 
 console.error(`ArohaFlow Agent Service started (google=${googleKind}; morning + ~17:30 UTC windows)`);
 console.error(`Store ready; today=${clock.todayDateKey()}; activity=${(await store.listAgentActivity()).length}`);
+console.error(
+  `Discovery career-ops: ${careerOpsRoot ?? 'fake demo (set CAREER_OPS_ROOT or add ./career-data)'}`,
+);
 console.error(`HTTP bridge listening on http://${httpHost}:${boundPort} (loopback only)`);
 
 await loop.start({ intervalMs: 60_000 });

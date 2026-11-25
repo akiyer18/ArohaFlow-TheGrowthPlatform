@@ -34,3 +34,5 @@ credentials.json
 .env.development.local
 .env.test.local
 .env.production.local 
+# Personal career data (CV, profile, job pipeline) read by Discovery
+career-data/

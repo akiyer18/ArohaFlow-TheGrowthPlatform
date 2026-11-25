@@ -8,6 +8,10 @@ import { createFakeCalendarWrite } from './adapters/fakeCalendarWrite.js';
 import { createStoreFromEnv } from './createStore.js';
 import { createGooglePortsFromEnv } from './createGooglePorts.js';
 import { createFakeCareerOps } from './adapters/fakeCareerOps.js';
+import {
+  createFileCareerOps,
+  resolveCareerOpsRoot,
+} from './adapters/fileCareerOps.js';
 
 const DEMO_DISCOVERY_LISTINGS = [
   {
@@ -33,6 +37,44 @@ const DEMO_DISCOVERY_LISTINGS = [
     liveness: 'uncertain',
   },
 ];
+
+function createCareerOpsPort({ env, clock, careerOps }) {
+  if (careerOps) {
+    return { careerOps, careerOpsRoot: null };
+  }
+
+  const root = resolveCareerOpsRoot(env);
+  if (root) {
+    return {
+      careerOps: createFileCareerOps({ root, clock }),
+      careerOpsRoot: root,
+    };
+  }
+
+  return {
+    careerOps: createFakeCareerOps({
+      listings: DEMO_DISCOVERY_LISTINGS,
+      suggestions: {
+        'job-demo-acme': {
+          listingId: 'job-demo-acme',
+          sections: [
+            {
+              section: 'experience',
+              suggestion: 'Lead with evaluation-harness ownership in recent roles.',
+            },
+          ],
+          keywords: [
+            {
+              keyword: 'evaluation',
+              experienceHint: 'Highlight offline eval / scoring language.',
+            },
+          ],
+        },
+      },
+    }),
+    careerOpsRoot: null,
+  };
+}
 
 /**
  * Agent Service process wiring.
@@ -64,28 +106,11 @@ export function createLocalAgent(options = {}) {
   const calendarWrite =
     options.calendarEvents != null ? createFakeCalendarWrite() : google.calendarWrite;
 
-  const careerOps =
-    options.careerOps ??
-    createFakeCareerOps({
-      listings: DEMO_DISCOVERY_LISTINGS,
-      suggestions: {
-        'job-demo-acme': {
-          listingId: 'job-demo-acme',
-          sections: [
-            {
-              section: 'experience',
-              suggestion: 'Lead with evaluation-harness ownership in recent roles.',
-            },
-          ],
-          keywords: [
-            {
-              keyword: 'evaluation',
-              experienceHint: 'Highlight offline eval / scoring language.',
-            },
-          ],
-        },
-      },
-    });
+  const { careerOps, careerOpsRoot } = createCareerOpsPort({
+    env,
+    clock,
+    careerOps: options.careerOps,
+  });
 
   const agent = createAgentService({
     clock,
@@ -120,5 +145,5 @@ export function createLocalAgent(options = {}) {
     careerOps,
   });
 
-  return { agent, clock, store, googleKind: google.kind };
+  return { agent, clock, store, googleKind: google.kind, careerOpsRoot };
 }
