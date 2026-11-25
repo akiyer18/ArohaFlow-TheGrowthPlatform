@@ -36,3 +36,4 @@ credentials.json
 .env.production.local 
 # Personal career data (CV, profile, job pipeline) read by Discovery
 career-data/
+.hallmark/shots/

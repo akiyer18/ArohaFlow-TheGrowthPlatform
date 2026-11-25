@@ -113,13 +113,6 @@ export async function createAgentHttpServer(options) {
     if (method === 'GET' && pathname === '/applications') {
       return agent.listApplications();
     }
-    if (method === 'PUT' && pathname === '/applications') {
-      return agent.upsertApplication(body);
-    }
-    const appDelete = pathname.match(/^\/applications\/([^/]+)$/);
-    if (method === 'DELETE' && appDelete) {
-      return agent.deleteApplication({ id: decodeURIComponent(appDelete[1]) });
-    }
     if (method === 'POST' && pathname === '/discovery/search') {
       return agent.runDiscoverySearch(body ?? {});
     }

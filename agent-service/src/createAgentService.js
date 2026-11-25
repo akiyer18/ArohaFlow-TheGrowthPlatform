@@ -21,12 +21,13 @@ import {
   scheduleMicroaction,
 } from './tools/weeklyPlanAccept.js';
 import { upsertHabit, listHabits, listCalendarView } from './tools/habitCalendar.js';
-import { assessDayPlanOvercommit } from './tools/overcommit.js';
 import {
+  addApplication,
   listApplications,
-  upsertApplication,
-  deleteApplication,
+  moveApplication,
+  setApplicationNextStep,
 } from './tools/applications.js';
+import { assessDayPlanOvercommit } from './tools/overcommit.js';
 import {
   runDiscoverySearch,
   getDiscoveryCvSuggestions,
@@ -156,18 +157,6 @@ export function createAgentService(deps) {
       return store.listSenderAllowlist();
     },
 
-    async listApplications() {
-      return listApplications({ store });
-    },
-
-    async upsertApplication(input) {
-      return upsertApplication({ store }, input);
-    },
-
-    async deleteApplication(input) {
-      return deleteApplication({ store }, input);
-    },
-
     async runDiscoverySearch(input) {
       return runDiscoverySearch({ store, careerOps, clock }, input ?? {});
     },
@@ -177,7 +166,23 @@ export function createAgentService(deps) {
     },
 
     async promoteDiscoveryToApplication(input) {
-      return promoteDiscoveryToApplication({ store, careerOps }, input ?? {});
+      return promoteDiscoveryToApplication({ store, careerOps, clock }, input ?? {});
+    },
+
+    async listApplications() {
+      return listApplications({ store, clock });
+    },
+
+    async addApplication(input) {
+      return addApplication({ store, clock }, input);
+    },
+
+    async moveApplication(input) {
+      return moveApplication({ store, clock }, input);
+    },
+
+    async setApplicationNextStep(input) {
+      return setApplicationNextStep({ store }, input);
     },
 
     async listCalendarView(input) {

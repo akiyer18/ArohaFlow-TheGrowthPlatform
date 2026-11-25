@@ -49,7 +49,7 @@ const Dashboard = () => {
         navigate('/grocery-list');
         break;
       case 6: // Habit Tracker
-        navigate('/habit-tracker');
+        navigate('/habits');
         break;
       case 7: // Journal
         navigate('/journal');

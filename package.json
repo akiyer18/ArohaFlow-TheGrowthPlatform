@@ -8,14 +8,16 @@
     "dev:os": "node scripts/devOs.js",
     "build": "vite build",
     "server": "node server/index.js",
-    "agent:test": "vitest run agent-service/tests src/modules/calendar-view src/modules/money src/modules/auth",
+    "agent:test": "vitest run agent-service/tests src/modules/calendar-view src/modules/money src/modules/auth src/modules/habits src/modules/applications",
     "agent:eval:digest": "vitest run agent-service/eval/digest && node agent-service/eval/digest/cli.js",
     "agent:cadence": "node agent-service/src/runCadence.js",
     "agent:start": "node agent-service/src/startAgent.js",
     "agent:mcp": "node agent-service/src/mcp/stdio.js",
     "agent:oauth": "node agent-service/src/oauthSetup.js",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "habits:live": "HABITS_LIVE=1 vitest run src/modules/habits/supabase.live.test.js",
+    "applications:live": "APPS_LIVE=1 vitest run src/modules/applications/supabase.live.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

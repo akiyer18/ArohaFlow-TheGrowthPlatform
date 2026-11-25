@@ -1,12 +1,22 @@
 import { ActionStatus, MicroactionStatus } from '../domain/statuses.js';
+import {
+  applicationPatchToRow,
+  rowToApplication,
+  rowToEvent,
+} from '../../../src/modules/applications/applicationsStore.js';
 
 /**
  * Supabase Store adapter — durable life data for Agent Service (ADR-0006).
  * Callers speak glossary nouns; this module owns PostgREST table dialect.
  *
  * @param {import('@supabase/supabase-js').SupabaseClient | ReturnType<import('./fakeSupabaseClient.js').createFakeSupabaseClient>} client
+ * @param {{ ownerUserId?: string | null }} [options]
+ *   ownerUserId: auth user that owns rows this service writes to RLS-scoped tables
+ *   (agent_habits, agent_habit_checkins), so the web app can see them (ADR-0011).
  */
-export function createSupabaseStore(client) {
+export function createSupabaseStore(client, { ownerUserId = null } = {}) {
+  const owner = ownerUserId ? { user_id: ownerUserId } : {};
+
   function throwIfError(error, action) {
     if (error) throw new Error(`Store ${action}: ${error.message ?? error}`);
   }
@@ -276,15 +286,57 @@ export function createSupabaseStore(client) {
       throwIfError(error, 'appendAgentActivity');
     },
 
+    async listApplications() {
+      const { data, error } = await client
+        .from('agent_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+      throwIfError(error, 'listApplications');
+      return (data ?? []).map(rowToApplication);
+    },
+
+    async upsertApplication(application) {
+      const { id, ...fields } = application;
+      const { error } = await client
+        .from('agent_applications')
+        .upsert({ id, ...applicationPatchToRow(fields), ...owner }, { onConflict: 'id' });
+      throwIfError(error, 'upsertApplication');
+      return structuredClone(application);
+    },
+
+    async listApplicationEvents({ from }) {
+      const { data, error } = await client.from('agent_application_events').select('*').gte('on_date', from);
+      throwIfError(error, 'listApplicationEvents');
+      return (data ?? []).map(rowToEvent);
+    },
+
+    async appendApplicationEvent(event) {
+      const { error } = await client.from('agent_application_events').insert({
+        application_id: event.applicationId,
+        from_stage: event.fromStage,
+        to_stage: event.toStage,
+        on_date: event.onDate,
+        ...owner,
+      });
+      throwIfError(error, 'appendApplicationEvent');
+    },
+
     async listHabits() {
       const { data, error } = await client.from('agent_habits').select('*').order('id');
       throwIfError(error, 'listHabits');
-      return (data ?? []).map((row) => ({
-        id: row.id,
-        label: row.label,
-        scheduledDays: structuredClone(row.scheduled_days ?? []),
-        timeAnchor: row.time_anchor,
-      }));
+      return (data ?? [])
+        .filter((row) => !row.archived)
+        .map((row) => ({
+          id: row.id,
+          label: row.label,
+          scheduledDays: structuredClone(row.scheduled_days ?? []),
+          timeAnchor: row.time_anchor ?? null,
+          minimum: row.minimum_label ? { label: row.minimum_label } : null,
+          season: row.season_from
+            ? { reason: row.season_reason ?? '', from: row.season_from, until: row.season_until ?? null }
+            : null,
+          restartedOn: row.restarted_on ?? null,
+        }));
     },
 
     async upsertHabit(habit) {
@@ -294,6 +346,7 @@ export function createSupabaseStore(client) {
           label: habit.label,
           scheduled_days: habit.scheduledDays,
           time_anchor: habit.timeAnchor,
+          ...owner,
         },
         { onConflict: 'id' },
       );
@@ -311,6 +364,7 @@ export function createSupabaseStore(client) {
         habitId: row.habit_id,
         label: row.label,
         at: row.at,
+        level: row.level === 'minimum' ? 'minimum' : 'full',
       }));
     },
 
@@ -322,6 +376,8 @@ export function createSupabaseStore(client) {
         habit_id: checkIn.habitId,
         label: checkIn.label,
         at: checkIn.at,
+        level: checkIn.level === 'minimum' ? 'minimum' : 'full',
+        ...owner,
       });
       throwIfError(error, 'saveHabitCheckIn');
       return this.getHabitCheckIns(dateKey);
@@ -510,40 +566,6 @@ export function createSupabaseStore(client) {
         }
       }
       throw new Error(`Action not found: ${actionId}`);
-    },
-
-    async listApplications() {
-      const { data, error } = await client.from('agent_applications').select('*').order('id');
-      throwIfError(error, 'listApplications');
-      return (data ?? []).map((row) => ({
-        id: row.id,
-        company: row.company,
-        roleTitle: row.role_title,
-        link: row.link ?? '',
-        notes: row.notes ?? '',
-        status: row.status,
-      }));
-    },
-
-    async upsertApplication(application) {
-      const { error } = await client.from('agent_applications').upsert(
-        {
-          id: application.id,
-          company: application.company,
-          role_title: application.roleTitle,
-          link: application.link ?? '',
-          notes: application.notes ?? '',
-          status: application.status,
-        },
-        { onConflict: 'id' },
-      );
-      throwIfError(error, 'upsertApplication');
-      return structuredClone(application);
-    },
-
-    async deleteApplication(id) {
-      const { error } = await client.from('agent_applications').delete().eq('id', id);
-      throwIfError(error, 'deleteApplication');
     },
   };
 }

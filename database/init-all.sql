@@ -135,38 +135,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 
--- 8. Habits
-CREATE TABLE IF NOT EXISTS habits (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID NOT NULL,
-  title TEXT NOT NULL,
-  description TEXT,
-  color TEXT NOT NULL DEFAULT '#6e7dff',
-  icon TEXT NOT NULL DEFAULT 'target',
-  frequency_type TEXT NOT NULL,
-  frequency_value JSONB NOT NULL DEFAULT '{}',
-  target_per_day INTEGER,
-  start_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  archived BOOLEAN NOT NULL DEFAULT FALSE
-);
-CREATE INDEX IF NOT EXISTS idx_habits_user_id ON habits(user_id);
-CREATE INDEX IF NOT EXISTS idx_habits_archived ON habits(archived);
-
--- 9. Habit logs
-CREATE TABLE IF NOT EXISTS habit_logs (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  habit_id UUID NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL,
-  date DATE NOT NULL,
-  count INTEGER NOT NULL DEFAULT 1,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(habit_id, date)
-);
-CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_id ON habit_logs(habit_id);
-CREATE INDEX IF NOT EXISTS idx_habit_logs_user_id ON habit_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_habit_logs_date ON habit_logs(date);
+-- 8 and 9. Habits live in the Agent Store (agent_habits, agent_habit_checkins):
+--      run database/agent-service-schema.sql, then database/habits-store-migration.sql.
 
 -- 10. Recipes
 CREATE TABLE IF NOT EXISTS recipes (
@@ -238,7 +208,7 @@ CREATE INDEX IF NOT EXISTS idx_calendar_events_start_at ON calendar_events(start
 DO $$
 DECLARE
   t TEXT;
-  tables TEXT[] := ARRAY['accounts','transactions','budget_categories','planned_expenses','income_ideas','reminders','tasks','habits','habit_logs','recipes','recipe_ingredients','meal_plans','grocery_items','calendar_events'];
+  tables TEXT[] := ARRAY['accounts','transactions','budget_categories','planned_expenses','income_ideas','reminders','tasks','recipes','recipe_ingredients','meal_plans','grocery_items','calendar_events'];
 BEGIN
   FOREACH t IN ARRAY tables
   LOOP
@@ -260,7 +230,7 @@ DO $$
 DECLARE
   tbl TEXT;
 BEGIN
-  FOREACH tbl IN ARRAY '{accounts,transactions,budget_categories,planned_expenses,income_ideas,reminders,tasks,habits,habit_logs,recipes,meal_plans,grocery_items,calendar_events}'::TEXT[]
+  FOREACH tbl IN ARRAY '{accounts,transactions,budget_categories,planned_expenses,income_ideas,reminders,tasks,recipes,meal_plans,grocery_items,calendar_events}'::TEXT[]
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS "allow_user_or_dev_sel_%s" ON %I', tbl, tbl);
     EXECUTE format('CREATE POLICY "allow_user_or_dev_sel_%s" ON %I FOR SELECT USING (app_user_can_access(user_id))', tbl, tbl);
@@ -302,12 +272,6 @@ BEGIN
       (dev_id, 'Sample task 1', NOW() + INTERVAL '1 day', 'Medium', 'Work', 'Pending'),
       (dev_id, 'Sample task 2', NOW() + INTERVAL '2 days', 'High', 'Health', 'Pending'),
       (dev_id, 'Sample task 3', NOW(), 'Low', 'Other', 'Pending');
-  END IF;
-  IF (SELECT COUNT(*) FROM habits WHERE user_id = dev_id) = 0 THEN
-    INSERT INTO habits (user_id, title, description, color, icon, frequency_type, frequency_value, start_date)
-    VALUES
-      (dev_id, 'Drink water', '8 glasses per day', '#3b82f6', 'Droplets', 'daily', '{}', CURRENT_DATE),
-      (dev_id, 'Morning stretch', '5 min', '#1fa66a', 'Zap', 'daily', '{}', CURRENT_DATE);
   END IF;
   IF (SELECT COUNT(*) FROM recipes WHERE user_id = dev_id) = 0 THEN
     INSERT INTO recipes (user_id, name, ingredients, cooking_time, instructions)

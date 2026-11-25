@@ -7,10 +7,7 @@ function fakeFacade() {
       return { date: '2026-11-13', dayPlan: { date: '2026-11-13', status: 'locked', blocks: [] } };
     },
     async listApplications() {
-      return [{ id: 'a1', company: 'Acme', roleTitle: 'FE', link: '', notes: '', status: 'applied' }];
-    },
-    async upsertApplication(input) {
-      return { ...input };
+      return { applications: [{ id: 'a1', company: 'Acme', role: 'FE', url: null, stage: 'applied' }] };
     },
     async listGoals() {
       return [{ id: 'g1', title: 'Land a role', actions: [] }];
@@ -68,14 +65,13 @@ function fakeFacade() {
         keywords: [{ keyword: 'evaluation', experienceHint: 'Use eval language.' }],
       };
     },
-    async promoteDiscoveryToApplication(input) {
+    async promoteDiscoveryToApplication() {
       return {
         id: 'app-discovery-job-1',
         company: 'Acme',
-        roleTitle: 'AI Engineer',
-        link: 'https://jobs.acme.example/ai',
-        notes: '',
-        status: input.status || 'to_apply',
+        role: 'AI Engineer',
+        url: 'https://jobs.acme.example/ai',
+        stage: 'saved',
       };
     },
   };
@@ -108,24 +104,9 @@ describe('Agent HTTP (#13)', () => {
 
     const appsRes = await fetch(`http://127.0.0.1:${port}/applications`);
     expect(appsRes.status).toBe(200);
-    expect(await appsRes.json()).toEqual([
-      { id: 'a1', company: 'Acme', roleTitle: 'FE', link: '', notes: '', status: 'applied' },
-    ]);
-
-    const putRes = await fetch(`http://127.0.0.1:${port}/applications`, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        id: 'a2',
-        company: 'Beta',
-        roleTitle: 'SWE',
-        link: '',
-        notes: '',
-        status: 'to_apply',
-      }),
+    expect(await appsRes.json()).toEqual({
+      applications: [{ id: 'a1', company: 'Acme', role: 'FE', url: null, stage: 'applied' }],
     });
-    expect(putRes.status).toBe(200);
-    expect(await putRes.json()).toMatchObject({ id: 'a2', company: 'Beta' });
   });
 
   it('rejects listen hosts that are not loopback', async () => {
@@ -264,12 +245,12 @@ describe('Agent HTTP (#13)', () => {
     const promoteRes = await fetch(`${base}/discovery/promote`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ listingId: 'job-1', status: 'to_apply' }),
+      body: JSON.stringify({ listingId: 'job-1' }),
     });
     expect(promoteRes.status).toBe(200);
     expect(await promoteRes.json()).toMatchObject({
       id: 'app-discovery-job-1',
-      status: 'to_apply',
+      stage: 'saved',
     });
   });
 });

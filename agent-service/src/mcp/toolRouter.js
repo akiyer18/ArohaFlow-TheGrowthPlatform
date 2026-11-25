@@ -29,7 +29,7 @@ export function createMcpToolRouter(agent) {
     },
     {
       name: 'log_habit_checkin',
-      description: 'Record a Habit Check-in for today (Completion-only Daily Points).',
+      description: 'Record a Habit Check-in for today: level "full" (10 points) or "minimum" (Minimum Version, 5 points).',
       call: (args) => agent.logHabitCheckIn(args),
     },
     {
@@ -61,6 +61,26 @@ export function createMcpToolRouter(agent) {
       name: 'upsert_habit',
       description: 'Create or update a Habit with scheduled days and a time anchor.',
       call: (args) => agent.upsertHabit(args),
+    },
+    {
+      name: 'list_applications',
+      description: 'List job Applications with next steps, follow-ups and this week’s stage movement.',
+      call: () => agent.listApplications(),
+    },
+    {
+      name: 'add_application',
+      description: 'Add a job Application (company, role, optional link, stage, next step and date).',
+      call: (args) => agent.addApplication(args),
+    },
+    {
+      name: 'move_application',
+      description: 'Move an Application to saved, applied, interviewing, offer or closed (closing needs closedReason).',
+      call: (args) => agent.moveApplication(args),
+    },
+    {
+      name: 'set_application_next_step',
+      description: 'Set or clear an Application’s next step and its due date (YYYY-MM-DD).',
+      call: (args) => agent.setApplicationNextStep(args),
     },
     {
       name: 'list_habits',

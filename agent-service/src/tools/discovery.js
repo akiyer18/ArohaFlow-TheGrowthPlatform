@@ -1,5 +1,4 @@
-import { assertApplicationStatus } from '../domain/applicationStatuses.js';
-import { upsertApplication } from './applications.js';
+import { addApplication } from './applications.js';
 
 function normalizeLink(link) {
   return typeof link === 'string' ? link.trim() : '';
@@ -40,7 +39,7 @@ export async function runDiscoverySearch(deps, input = {}) {
 
   const applications = await store.listApplications();
   const trackerLinks = new Set(
-    applications.map((a) => normalizeLink(a.link)).filter(Boolean),
+    applications.map((a) => normalizeLink(a.url)).filter(Boolean),
   );
 
   const results = listings
@@ -74,10 +73,10 @@ export async function getDiscoveryCvSuggestions(deps, input = {}) {
 }
 
 /**
- * Promote a Discovery hit into the Applications Tracker (idempotent by link).
+ * Promote a Discovery hit onto the Applications board as Saved (idempotent by link).
  */
 export async function promoteDiscoveryToApplication(deps, input = {}) {
-  const { store, careerOps } = deps;
+  const { store, careerOps, clock } = deps;
   if (!careerOps) throw new Error('careerOps port required to promote Discovery');
 
   const listingId = input.listingId;
@@ -91,26 +90,19 @@ export async function promoteDiscoveryToApplication(deps, input = {}) {
   }
 
   const link = normalizeLink(listing.link);
-  const status = input.status ?? 'to_apply';
-  assertApplicationStatus(status);
-
-  const discoveryId = `app-discovery-${listingId}`;
   const existing = (await store.listApplications()).find(
-    (a) =>
-      a.id === discoveryId || (link !== '' && normalizeLink(a.link) === link),
+    (a) => link !== '' && normalizeLink(a.url) === link,
   );
+  if (existing) return existing;
 
-  const id = existing?.id ?? discoveryId;
-
-  return upsertApplication(
-    { store },
+  return addApplication(
+    { store, clock },
     {
-      id,
       company: listing.company,
-      roleTitle: listing.roleTitle,
-      link,
-      notes: existing?.notes ?? '',
-      status,
+      role: listing.roleTitle,
+      url: link || null,
+      source: 'Discovery',
+      stage: 'saved',
     },
   );
 }

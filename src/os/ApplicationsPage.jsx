@@ -1,92 +1,255 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  deleteApplication,
-  getDiscoveryCvSuggestions,
-  loadApplications,
-  promoteDiscoveryToApplication,
-  runDiscoverySearch,
-  upsertApplication,
-} from './loadOsData';
-import { isAgentHttpConfigured } from './agentHttp';
+  CLOSED_REASONS,
+  STAGES,
+  buildApplicationsView,
+  daysInStage,
+  getApplications,
+  getApplicationsStore,
+  moveStage,
+  nextStepState,
+  stageLabel,
+} from '../modules/applications';
+import DiscoveryPanel from './DiscoveryPanel';
+import './applications.css';
 
-const STATUSES = [
-  { value: 'to_apply', label: 'To apply' },
-  { value: 'applied', label: 'Applied' },
-  { value: 'interviewing', label: 'Interviewing' },
-  { value: 'offer', label: 'Offer' },
-  { value: 'rejected', label: 'Rejected' },
-];
+/* ---------- Formatting ---------- */
 
-const EMPTY_FORM = {
-  id: '',
-  company: '',
-  roleTitle: '',
-  link: '',
-  notes: '',
-  status: 'to_apply',
-};
-
-function statusLabel(value) {
-  return STATUSES.find((s) => s.value === value)?.label ?? value;
+function formatDay(dateKey) {
+  if (!dateKey) return '';
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-function statusClass(value) {
-  switch (value) {
-    case 'to_apply':
-      return 'os-status os-status-to-apply';
-    case 'applied':
-      return 'os-status os-status-applied';
-    case 'interviewing':
-      return 'os-status os-status-interviewing';
-    case 'offer':
-      return 'os-status os-status-offer';
-    case 'rejected':
-      return 'os-status os-status-rejected';
-    default:
-      return 'os-status';
-  }
+const DUE_LABEL = { overdue: 'Overdue', today: 'Today', soon: 'Soon', later: '' };
+
+function dueText(app, state) {
+  if (!app.nextStepDue) return null;
+  const when = state === 'today' ? 'today' : formatDay(app.nextStepDue);
+  return state === 'overdue' ? `was due ${when}` : `due ${when}`;
 }
 
-function livenessClass(value) {
-  switch (value) {
-    case 'open':
-      return 'os-status os-status-liveness-open';
-    case 'expired':
-      return 'os-status os-status-liveness-expired';
-    case 'uncertain':
-      return 'os-status os-status-liveness-uncertain';
-    default:
-      return 'os-status';
-  }
+function daysText(n) {
+  if (n == null) return '';
+  if (n === 0) return 'since today';
+  return n === 1 ? '1 day' : `${n} days`;
 }
+
+/* ---------- Add form ---------- */
+
+function AddApplicationForm({ onSave, onCancel }) {
+  const [form, setForm] = useState({ company: '', role: '', url: '', stage: 'saved', nextStep: '', nextStepDue: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  return (
+    <form
+      className="ap-add os-panel"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setError(null);
+        try {
+          await onSave(form);
+        } catch (err) {
+          setError(err.message);
+          setSaving(false);
+        }
+      }}
+    >
+      <h2 className="ap-panel-title">New application</h2>
+      <div className="ap-form-grid">
+        <label className="ap-field">
+          <span className="os-meta">Company</span>
+          <input className="os-input" value={form.company} onChange={set('company')} required />
+        </label>
+        <label className="ap-field">
+          <span className="os-meta">Role</span>
+          <input className="os-input" value={form.role} onChange={set('role')} required />
+        </label>
+        <label className="ap-field ap-span-2">
+          <span className="os-meta">Link to the posting, optional</span>
+          <input className="os-input" type="url" value={form.url} onChange={set('url')} placeholder="https://" />
+        </label>
+        <fieldset className="ap-groove ap-span-2">
+          <legend className="os-meta">Where it stands</legend>
+          {['saved', 'applied', 'interviewing', 'offer'].map((id) => (
+            <label key={id} className={form.stage === id ? 'ap-choice is-on' : 'ap-choice'}>
+              <input type="radio" name="new-stage" value={id} checked={form.stage === id} onChange={set('stage')} />
+              {stageLabel(id)}
+            </label>
+          ))}
+        </fieldset>
+        <label className="ap-field">
+          <span className="os-meta">Next step, optional</span>
+          <input className="os-input" value={form.nextStep} onChange={set('nextStep')} placeholder="Tailor CV and apply" />
+        </label>
+        <label className="ap-field">
+          <span className="os-meta">By</span>
+          <input className="os-input" type="date" value={form.nextStepDue} onChange={set('nextStepDue')} />
+        </label>
+      </div>
+      {error ? (
+        <p className="os-warn" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="ap-actions">
+        <button type="button" className="os-btn os-btn-secondary" onClick={onCancel} disabled={saving}>
+          Cancel
+        </button>
+        <button type="submit" className="os-btn os-btn-primary" disabled={saving} aria-busy={saving}>
+          {saving ? 'Saving' : 'Add application'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ---------- Card ---------- */
+
+function ApplicationCard({ app, today, onMove, onUpdate }) {
+  const [open, setOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [draft, setDraft] = useState({ nextStep: app.nextStep ?? '', nextStepDue: app.nextStepDue ?? '', notes: app.notes ?? '' });
+  const state = nextStepState(app, today);
+  const order = STAGES.map((s) => s.id);
+  const next = order[order.indexOf(app.stage) + 1];
+  const nextIsOpen = next && next !== 'closed';
+
+  return (
+    <li className={state === 'overdue' ? 'ap-card is-overdue' : 'ap-card'}>
+      <div className="ap-card-head">
+        <h3 className="ap-company">{app.company}</h3>
+        <span className="os-meta">{daysText(daysInStage(app, today))}</span>
+      </div>
+      <p className="ap-role">{app.role}</p>
+      {app.nextStep ? (
+        <p className={`ap-next is-${state ?? 'none'}`}>
+          {DUE_LABEL[state] ? <span className="ap-due">{DUE_LABEL[state]}</span> : null}
+          {app.nextStep}
+          {dueText(app, state) ? <span className="ap-when">, {dueText(app, state)}</span> : null}
+        </p>
+      ) : null}
+
+      <div className="ap-card-foot">
+        {nextIsOpen ? (
+          <button type="button" className="os-block-btn" onClick={() => onMove(app, next)}>
+            Move to {stageLabel(next)}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="ap-text-btn"
+          aria-expanded={open}
+          onClick={() => {
+            setOpen((v) => !v);
+            setClosing(false);
+          }}
+        >
+          {open ? 'Less' : 'Details'}
+        </button>
+      </div>
+
+      {open ? (
+        <div className="ap-detail">
+          {app.url ? (
+            <a className="os-inline-link os-meta" href={app.url} target="_blank" rel="noreferrer">
+              Open the posting
+            </a>
+          ) : null}
+          <form
+            className="ap-detail-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const ok = await onUpdate(app.id, draft);
+              if (ok) setOpen(false);
+            }}
+          >
+            <label className="ap-field">
+              <span className="os-meta">Next step</span>
+              <input
+                className="os-input"
+                value={draft.nextStep}
+                onChange={(e) => setDraft((d) => ({ ...d, nextStep: e.target.value }))}
+              />
+            </label>
+            <label className="ap-field">
+              <span className="os-meta">By</span>
+              <input
+                className="os-input"
+                type="date"
+                value={draft.nextStepDue}
+                onChange={(e) => setDraft((d) => ({ ...d, nextStepDue: e.target.value }))}
+              />
+            </label>
+            <label className="ap-field">
+              <span className="os-meta">Notes</span>
+              <textarea
+                className="os-input ap-notes"
+                rows={3}
+                value={draft.notes}
+                onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))}
+              />
+            </label>
+            <div className="ap-actions">
+              <button type="submit" className="os-btn os-btn-secondary">
+                Save
+              </button>
+            </div>
+          </form>
+
+          <div className="ap-move">
+            <span className="os-meta">Move to</span>
+            <div className="ap-move-row">
+              {STAGES.filter((s) => s.id !== app.stage && s.id !== 'closed').map((s) => (
+                <button key={s.id} type="button" className="os-block-btn" onClick={() => onMove(app, s.id)}>
+                  {s.label}
+                </button>
+              ))}
+              <button type="button" className="os-block-btn" aria-expanded={closing} onClick={() => setClosing((v) => !v)}>
+                Close
+              </button>
+            </div>
+            {closing ? (
+              <div className="ap-move-row" role="group" aria-label="Why it closed">
+                {CLOSED_REASONS.map((reason) => (
+                  <button key={reason} type="button" className="os-block-btn" onClick={() => onMove(app, 'closed', reason)}>
+                    {reason}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+/* ---------- Page ---------- */
 
 export default function ApplicationsPage() {
-  const [section, setSection] = useState('tracker');
   const [status, setStatus] = useState('loading');
-  const [apps, setApps] = useState([]);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [message, setMessage] = useState(null);
-  const [formOpen, setFormOpen] = useState(false);
-
-  const [discoveryStatus, setDiscoveryStatus] = useState('idle');
-  const [discovery, setDiscovery] = useState({ searchedAt: null, results: [] });
-  const [selectedListingId, setSelectedListingId] = useState(null);
-  const [cvTips, setCvTips] = useState(null);
-  const [includeExpired, setIncludeExpired] = useState(false);
-
-  const refreshTracker = async () => {
-    const payload = await loadApplications();
-    setApps(Array.isArray(payload) ? payload : []);
-    setStatus(payload?.length ? 'full' : 'empty');
-  };
+  const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [section, setSection] = useState('board');
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        await refreshTracker();
-      } catch {
-        if (!cancelled) setStatus('error');
+        const payload = await getApplications();
+        if (cancelled) return;
+        setData(payload);
+        setStatus(payload.applications.length ? 'full' : 'empty');
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(err.message);
+          setStatus('error');
+        }
       }
     })();
     return () => {
@@ -94,515 +257,251 @@ export default function ApplicationsPage() {
     };
   }, []);
 
-  const onSubmit = async (event) => {
-    event.preventDefault();
-    setMessage(null);
-    const id = form.id.trim() || `app-${Date.now()}`;
+  const view = useMemo(() => (data ? buildApplicationsView(data) : null), [data]);
+
+  const commit = async (apply, write, failMessage) => {
+    const before = data;
+    setData((prev) => apply(prev));
     try {
-      await upsertApplication({
-        id,
-        company: form.company.trim(),
-        roleTitle: form.roleTitle.trim(),
-        link: form.link.trim(),
-        notes: form.notes.trim(),
-        status: form.status,
-      });
-      setForm(EMPTY_FORM);
-      setFormOpen(false);
-      await refreshTracker();
-      setMessage(`Saved ${form.company.trim()}`);
+      await write(await getApplicationsStore());
+      return true;
     } catch (err) {
-      setMessage(err.message || 'Could not save Application');
+      setData(before);
+      setNotice(`${failMessage} ${err.message}`);
+      return false;
     }
   };
 
-  const onEdit = (app) => {
-    setForm({
-      id: app.id,
-      company: app.company,
-      roleTitle: app.roleTitle,
-      link: app.link || '',
-      notes: app.notes || '',
-      status: app.status,
-    });
-    setFormOpen(true);
+  const patchApp = (id, patch) => (prev) => ({
+    ...prev,
+    applications: prev.applications.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+  });
+
+  const onMove = async (app, toStage, reason = null) => {
+    setNotice(null);
+    const { patch, event } = moveStage(app, toStage, data.today, reason);
+    const ok = await commit(
+      (prev) => ({ ...patchApp(app.id, patch)(prev), events: [...prev.events, event] }),
+      async (store) => {
+        await store.updateApplication(app.id, patch);
+        await store.recordEvent(event);
+      },
+      'The move was not saved.',
+    );
+    if (ok) setNotice(`${app.company} moved to ${stageLabel(toStage)}${reason ? `, ${reason.toLowerCase()}` : ''}.`);
   };
 
-  const onDelete = async (id) => {
-    setMessage(null);
-    try {
-      await deleteApplication(id);
-      await refreshTracker();
-    } catch (err) {
-      setMessage(err.message || 'Could not delete Application');
-    }
+  const onUpdate = (id, draft) => {
+    setNotice(null);
+    const patch = {
+      nextStep: draft.nextStep.trim() || null,
+      nextStepDue: draft.nextStepDue || null,
+      notes: draft.notes.trim() || null,
+    };
+    return commit(patchApp(id, patch), (store) => store.updateApplication(id, patch), 'The changes were not saved.');
   };
 
-  const onRunDiscovery = async () => {
-    setMessage(null);
-    setDiscoveryStatus('loading');
-    setCvTips(null);
-    try {
-      const payload = await runDiscoverySearch({ includeExpired });
-      const results = Array.isArray(payload?.results) ? payload.results : [];
-      setDiscovery({
-        searchedAt: payload?.searchedAt ?? null,
-        results,
-      });
-      setDiscoveryStatus(results.length ? 'full' : 'empty');
-      const firstId = results[0]?.id ?? null;
-      setSelectedListingId(firstId);
-      if (firstId) {
-        const tips = await getDiscoveryCvSuggestions(firstId);
-        setCvTips(tips);
-      }
-    } catch (err) {
-      setDiscoveryStatus('error');
-      setMessage(err.message || 'Discovery search failed');
-    }
+  const onCreate = async (form) => {
+    const store = await getApplicationsStore();
+    const created = await store.createApplication(form);
+    setData((prev) => ({
+      ...prev,
+      applications: [created, ...prev.applications],
+      events: [...prev.events, { applicationId: created.id, fromStage: null, toStage: created.stage, onDate: prev.today }],
+    }));
+    setStatus('full');
+    setAdding(false);
+    setNotice(`${created.company} added to ${stageLabel(created.stage)}.`);
   };
 
-  const onSelectListing = async (listingId) => {
-    setSelectedListingId(listingId);
-    setCvTips(null);
-    try {
-      const tips = await getDiscoveryCvSuggestions(listingId);
-      setCvTips(tips);
-    } catch (err) {
-      setMessage(err.message || 'Could not load CV suggestions');
-    }
-  };
-
-  const onPromote = async (listing, promoteStatus = 'to_apply') => {
-    setMessage(null);
-    try {
-      const saved = await promoteDiscoveryToApplication({
-        listingId: listing.id,
-        status: promoteStatus,
-      });
-      await refreshTracker();
-      setDiscovery((prev) => ({
-        ...prev,
-        results: prev.results.map((r) =>
-          r.id === listing.id ? { ...r, alreadyInTracker: true } : r,
-        ),
-      }));
-      setMessage(`Added ${saved.company} — ${saved.roleTitle} to Tracker`);
-      setSection('tracker');
-    } catch (err) {
-      setMessage(err.message || 'Could not promote Discovery hit');
-    }
-  };
-
-  const selected = discovery.results.find((r) => r.id === selectedListingId) ?? null;
+  const stats = view?.stats;
+  const boardUrls = useMemo(
+    () => new Set((data?.applications ?? []).map((a) => a.url?.trim()).filter(Boolean)),
+    [data],
+  );
 
   return (
-    <div className="os-stack">
-      <div className="os-toolbar">
-        <div>
-          <h1 className="os-panel-title" style={{ fontSize: 'var(--text-xl)' }}>
-            Applications
-          </h1>
-          <p className="os-meta">
-            Tracker CRM · Discovery from career-ops
+    <div className="ap">
+      <header className="ap-head">
+        <div className="ap-head-text">
+          <h1 className="ap-h1">Applications</h1>
+          <p className="ap-lead">
+            {stats ? (
+              <>
+                <span className="os-fig">{stats.open}</span> open, <span className="os-fig">{stats.interviewing}</span>{' '}
+                interviewing, <span className="os-fig">{stats.offers}</span> {stats.offers === 1 ? 'offer' : 'offers'}
+              </>
+            ) : (
+              'Your job search, one board'
+            )}
           </p>
         </div>
-        <div className="os-toolbar-actions">
+        <div className="ap-head-end">
+          {stats ? (
+            <p className="ap-moved">
+              <span className="os-fig">{stats.movedThisWeek}</span>
+              <span className="os-meta">moved this week</span>
+            </p>
+          ) : null}
           <div className="os-segmented" role="tablist" aria-label="Applications sections">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={section === 'tracker'}
-              className={
-                section === 'tracker'
-                  ? 'os-btn os-btn-primary os-btn-compact'
-                  : 'os-btn os-btn-secondary os-btn-compact'
-              }
-              onClick={() => setSection('tracker')}
-            >
-              Tracker
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={section === 'discovery'}
-              className={
-                section === 'discovery'
-                  ? 'os-btn os-btn-primary os-btn-compact'
-                  : 'os-btn os-btn-secondary os-btn-compact'
-              }
-              onClick={() => setSection('discovery')}
-            >
-              Discovery
-            </button>
+            {[
+              ['board', 'Board'],
+              ['discovery', 'Discovery'],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={section === id}
+                className={`os-btn os-btn-compact ${section === id ? 'os-btn-primary' : 'os-btn-secondary'}`}
+                onClick={() => setSection(id)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          {section === 'tracker' ? (
-            <button
-              type="button"
-              className="os-btn os-btn-primary"
-              disabled={!isAgentHttpConfigured()}
-              onClick={() => {
-                setForm(EMPTY_FORM);
-                setFormOpen(true);
-              }}
-            >
-              Add
+          {section === 'board' && !adding && status !== 'empty' ? (
+            <button type="button" className="os-btn os-btn-primary" onClick={() => setAdding(true)} disabled={status === 'loading'}>
+              Add application
             </button>
           ) : null}
         </div>
-      </div>
+      </header>
 
-      {message ? (
-        <p className="os-meta" role="status">
-          {message}
+      {notice ? (
+        <p className="ap-notice" role="status">
+          {notice}
         </p>
-      ) : null}
-
-      {!isAgentHttpConfigured() ? (
-        <p className="os-meta">
-          Fixture preview — set VITE_AGENT_HTTP_URL and run npm run agent:start to save.
-        </p>
-      ) : null}
-
-      {section === 'tracker' ? (
-        <>
-          <ul className="os-status-legend" aria-label="Status colours">
-            {STATUSES.map((s) => (
-              <li key={s.value}>
-                <span className={statusClass(s.value)}>{s.label}</span>
-              </li>
-            ))}
-          </ul>
-
-          {status === 'loading' ? <p className="os-state">Loading…</p> : null}
-          {status === 'error' ? (
-            <p className="os-state" role="alert">
-              Could not load Applications.
-            </p>
-          ) : null}
-          {status === 'empty' ? <p className="os-state">No Applications yet.</p> : null}
-
-          {apps.length > 0 ? (
-            <section className="os-panel" aria-labelledby="app-list-heading">
-              <h2 id="app-list-heading" className="os-panel-title">
-                Tracker
-              </h2>
-              <p className="os-meta">{apps.length} in pipeline</p>
-              <div className="os-table-wrap">
-                <table className="os-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Company</th>
-                      <th scope="col">Role</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Notes</th>
-                      <th scope="col">Link</th>
-                      <th scope="col">
-                        <span className="os-sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {apps.map((app) => (
-                      <tr key={app.id}>
-                        <td className="os-table-strong">{app.company}</td>
-                        <td>{app.roleTitle}</td>
-                        <td>
-                          <span className={statusClass(app.status)}>
-                            {statusLabel(app.status)}
-                          </span>
-                        </td>
-                        <td className="os-table-notes">{app.notes || '—'}</td>
-                        <td>
-                          {app.link ? (
-                            <a
-                              className="os-inline-link"
-                              href={app.link}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Open
-                            </a>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="os-table-actions">
-                          <button
-                            type="button"
-                            className="os-btn os-btn-secondary os-btn-compact"
-                            onClick={() => onEdit(app)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="os-btn os-btn-secondary os-btn-compact"
-                            disabled={!isAgentHttpConfigured()}
-                            onClick={() => onDelete(app.id)}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ) : null}
-
-          {formOpen ? (
-            <section className="os-panel" aria-labelledby="app-form-heading">
-              <h2 id="app-form-heading" className="os-panel-title">
-                {form.id ? 'Edit Application' : 'Add Application'}
-              </h2>
-              <form className="os-form-grid" onSubmit={onSubmit}>
-                <label className="os-stack" style={{ gap: 'var(--space-2xs)' }}>
-                  <span className="os-meta">Company</span>
-                  <input
-                    className="os-input"
-                    required
-                    value={form.company}
-                    onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
-                  />
-                </label>
-                <label className="os-stack" style={{ gap: 'var(--space-2xs)' }}>
-                  <span className="os-meta">Role title</span>
-                  <input
-                    className="os-input"
-                    required
-                    value={form.roleTitle}
-                    onChange={(e) => setForm((f) => ({ ...f, roleTitle: e.target.value }))}
-                  />
-                </label>
-                <label className="os-stack" style={{ gap: 'var(--space-2xs)' }}>
-                  <span className="os-meta">Status</span>
-                  <select
-                    className="os-input"
-                    value={form.status}
-                    onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s.value} value={s.value}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="os-stack" style={{ gap: 'var(--space-2xs)' }}>
-                  <span className="os-meta">Link</span>
-                  <input
-                    className="os-input"
-                    type="url"
-                    placeholder="https://"
-                    value={form.link}
-                    onChange={(e) => setForm((f) => ({ ...f, link: e.target.value }))}
-                  />
-                </label>
-                <label
-                  className="os-stack"
-                  style={{ gap: 'var(--space-2xs)', gridColumn: '1 / -1' }}
-                >
-                  <span className="os-meta">Notes</span>
-                  <textarea
-                    className="os-input"
-                    rows={2}
-                    value={form.notes}
-                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  />
-                </label>
-                <div className="os-toolbar-actions" style={{ gridColumn: '1 / -1' }}>
-                  <button
-                    type="submit"
-                    className="os-btn os-btn-primary"
-                    disabled={!isAgentHttpConfigured()}
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    className="os-btn os-btn-secondary"
-                    onClick={() => {
-                      setForm(EMPTY_FORM);
-                      setFormOpen(false);
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </section>
-          ) : null}
-        </>
       ) : null}
 
       {section === 'discovery' ? (
+        <DiscoveryPanel boardUrls={boardUrls} onSave={onCreate} />
+      ) : (
+      <>
+      {adding ? <AddApplicationForm onSave={onCreate} onCancel={() => setAdding(false)} /> : null}
+
+      {status === 'loading' ? (
+        <div className="os-state os-skeleton" aria-busy="true">
+          <span style={{ width: '30%' }} />
+          <span style={{ width: '70%' }} />
+          <span style={{ width: '50%' }} />
+        </div>
+      ) : status === 'error' ? (
+        <div className="os-state" role="alert">
+          Could not load applications{loadError ? ` (${loadError})` : ''}. Check that you are signed in and that
+          database/applications-store.sql has been run, then refresh.
+        </div>
+      ) : status === 'empty' ? (
+        <div className="ap-empty">
+          <p className="os-state">
+            No applications yet. Add the first one, even if it is only saved for later; the board fills from there.
+          </p>
+          <AddApplicationForm onSave={onCreate} onCancel={() => setAdding(false)} />
+        </div>
+      ) : (
         <>
-          <div className="os-toolbar">
-            <label className="os-meta" style={{ display: 'inline-flex', gap: '0.4rem' }}>
-              <input
-                type="checkbox"
-                checked={includeExpired}
-                onChange={(e) => setIncludeExpired(e.target.checked)}
-              />
-              Include expired
-            </label>
-            <div className="os-toolbar-actions">
-              <button type="button" className="os-btn os-btn-primary" onClick={onRunDiscovery}>
-                Run search
-              </button>
-            </div>
-          </div>
-
-          {discoveryStatus === 'loading' ? <p className="os-state">Searching…</p> : null}
-          {discoveryStatus === 'error' ? (
-            <p className="os-state" role="alert">
-              {message || 'Discovery search failed.'}
-            </p>
-          ) : null}
-          {discoveryStatus === 'empty' ? (
-            <p className="os-state">No open listings matched.</p>
-          ) : null}
-          {discoveryStatus === 'idle' ? (
-            <p className="os-state">Run a search to load Discovery results.</p>
-          ) : null}
-
-          {discovery.results.length > 0 ? (
-            <section className="os-panel" aria-labelledby="discovery-heading">
-              <h2 id="discovery-heading" className="os-panel-title">
-                Discovery
-              </h2>
-              {discovery.searchedAt ? (
-                <p className="os-meta">Searched {discovery.searchedAt}</p>
-              ) : null}
-              <div className="os-table-wrap">
-                <table className="os-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Company</th>
-                      <th scope="col">Role</th>
-                      <th scope="col">Score</th>
-                      <th scope="col">Recency</th>
-                      <th scope="col">Liveness</th>
-                      <th scope="col">
-                        <span className="os-sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {discovery.results.map((hit) => (
-                      <tr
-                        key={hit.id}
-                        className={
-                          hit.id === selectedListingId ? 'os-table-row-selected' : undefined
-                        }
-                      >
-                        <td className="os-table-strong">{hit.company}</td>
-                        <td>{hit.roleTitle}</td>
-                        <td>{typeof hit.score === 'number' ? hit.score.toFixed(1) : '—'}</td>
-                        <td>{hit.recencyDate || '—'}</td>
-                        <td>
-                          <span className={livenessClass(hit.liveness)}>{hit.liveness}</span>
-                        </td>
-                        <td className="os-table-actions">
-                          <button
-                            type="button"
-                            className="os-btn os-btn-secondary os-btn-compact"
-                            onClick={() => onSelectListing(hit.id)}
-                          >
-                            Details
-                          </button>
-                          {hit.alreadyInTracker ? (
-                            <span className="os-meta">In Tracker</span>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="os-btn os-btn-primary os-btn-compact"
-                                disabled={!isAgentHttpConfigured()}
-                                onClick={() => onPromote(hit, 'to_apply')}
-                              >
-                                To apply
-                              </button>
-                              <button
-                                type="button"
-                                className="os-btn os-btn-secondary os-btn-compact"
-                                disabled={!isAgentHttpConfigured()}
-                                onClick={() => onPromote(hit, 'applied')}
-                              >
-                                Applied
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ) : null}
-
-          {selected ? (
-            <section className="os-panel" aria-labelledby="discovery-detail-heading">
-              <h2 id="discovery-detail-heading" className="os-panel-title">
-                {selected.company} — {selected.roleTitle}
-              </h2>
-              <p className="os-meta">
-                {selected.link ? (
-                  <a
-                    className="os-inline-link"
-                    href={selected.link}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open posting
-                  </a>
-                ) : (
-                  'No link'
-                )}
-                {' · '}
-                score {typeof selected.score === 'number' ? selected.score.toFixed(1) : '—'}
-                {' · '}
-                recency {selected.recencyDate || '—'}
-              </p>
-              <p className="os-body">{selected.description || 'No description.'}</p>
-
-              {cvTips ? (
-                <div className="os-stack" style={{ marginTop: 'var(--space-sm)' }}>
-                  <h3 className="os-panel-title" style={{ fontSize: 'var(--text-md)' }}>
-                    CV suggestions
-                  </h3>
-                  <p className="os-meta">Guidance only — edit your CV yourself.</p>
-                  {cvTips.sections?.length ? (
-                    <ul className="os-plain-list">
-                      {cvTips.sections.map((s) => (
-                        <li key={`${s.section}-${s.suggestion}`}>
-                          <strong>{s.section}:</strong> {s.suggestion}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {cvTips.keywords?.length ? (
-                    <ul className="os-plain-list">
-                      {cvTips.keywords.map((k) => (
-                        <li key={`${k.keyword}-${k.experienceHint}`}>
-                          <strong>{k.keyword}:</strong> {k.experienceHint}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="os-meta" style={{ marginTop: 'var(--space-sm)' }}>
-                  Select Details to load CV suggestions.
+          <div className="ap-focus">
+            <section className="os-panel" aria-labelledby="ap-next-heading">
+              <div className="ap-section-head">
+                <h2 id="ap-next-heading" className="ap-panel-title">
+                  Next steps
+                </h2>
+                <p className="os-meta">
+                  <span className="os-fig">{view.nextSteps.length}</span> dated
                 </p>
+              </div>
+              {view.nextSteps.length ? (
+                <ul className="os-list">
+                  {view.nextSteps.slice(0, 5).map(({ app, state }) => (
+                    <li key={app.id} className={`ap-step is-${state}`}>
+                      <div className="ap-step-text">
+                        <p className="os-list-title">{app.nextStep}</p>
+                        <p className="os-list-meta">
+                          {app.company}, {stageLabel(app.stage).toLowerCase()}
+                        </p>
+                      </div>
+                      <span className="ap-step-when">{state === 'today' ? 'Today' : formatDay(app.nextStepDue)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="os-state">No dated next steps. Add one from a card&rsquo;s details.</p>
               )}
             </section>
+
+            <section className="os-panel" aria-labelledby="ap-follow-heading">
+              <div className="ap-section-head">
+                <h2 id="ap-follow-heading" className="ap-panel-title">
+                  Worth a follow-up
+                </h2>
+              </div>
+              {view.followUps.length ? (
+                <ul className="os-list">
+                  {view.followUps.map(({ app, days }) => (
+                    <li key={app.id} className="ap-step">
+                      <div className="ap-step-text">
+                        <p className="os-list-title">{app.company}</p>
+                        <p className="os-list-meta">
+                          {app.role}, quiet for <span className="os-fig">{days}</span> days
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="os-state">Nothing has gone quiet for 10 days.</p>
+              )}
+            </section>
+          </div>
+
+          <section className="ap-board" aria-label="Pipeline">
+            {view.columns.map((col) => (
+              <div key={col.id} className="ap-col">
+                <div className="ap-col-head">
+                  <h2 className="ap-col-title">{col.label}</h2>
+                  <span className="os-meta os-fig">{col.items.length}</span>
+                </div>
+                {col.items.length ? (
+                  <ul className="ap-cards">
+                    {col.items.map((app) => (
+                      <ApplicationCard key={app.id} app={app} today={data.today} onMove={onMove} onUpdate={onUpdate} />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="ap-col-empty">Nothing here.</p>
+                )}
+              </div>
+            ))}
+          </section>
+
+          {view.closed.length ? (
+            <details className="ap-closed">
+              <summary>
+                Closed <span className="os-fig">{view.closed.length}</span>
+              </summary>
+              <ul className="os-list">
+                {view.closed.map((app) => (
+                  <li key={app.id} className="ap-step">
+                    <div className="ap-step-text">
+                      <p className="os-list-title">
+                        {app.company}, {app.role}
+                      </p>
+                      <p className="os-list-meta">
+                        {app.closedReason}, {formatDay(app.stageChangedOn)}
+                      </p>
+                    </div>
+                    <button type="button" className="os-block-btn" onClick={() => onMove(app, 'applied')}>
+                      Reopen
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
           ) : null}
         </>
-      ) : null}
+      )}
+      </>
+      )}
     </div>
   );
 }

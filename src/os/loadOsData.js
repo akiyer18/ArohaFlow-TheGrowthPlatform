@@ -27,17 +27,6 @@ const ALLOWLIST_FIXTURE = [
   { type: 'domain', value: 'recruiters.example' },
 ];
 
-const APPLICATIONS_FIXTURE = [
-  {
-    id: 'app-demo',
-    company: 'Acme',
-    roleTitle: 'Frontend Engineer',
-    link: 'https://jobs.acme.example/fe',
-    notes: 'Portfolio-safe fixture',
-    status: 'applied',
-  },
-];
-
 const DISCOVERY_FIXTURE = {
   searchedAt: '2026-11-14T12:00:00.000Z',
   results: [
@@ -169,25 +158,6 @@ export async function saveAllowlist(entries) {
   return agentFetch('/allowlist', { method: 'PUT', body: entries });
 }
 
-export async function loadApplications() {
-  if (isAgentHttpConfigured()) return agentFetch('/applications');
-  return structuredClone(APPLICATIONS_FIXTURE);
-}
-
-export async function upsertApplication(application) {
-  if (!isAgentHttpConfigured()) {
-    throw new Error('Connect VITE_AGENT_HTTP_URL to save Applications');
-  }
-  return agentFetch('/applications', { method: 'PUT', body: application });
-}
-
-export async function deleteApplication(id) {
-  if (!isAgentHttpConfigured()) {
-    throw new Error('Connect VITE_AGENT_HTTP_URL to delete Applications');
-  }
-  return agentFetch(`/applications/${encodeURIComponent(id)}`, { method: 'DELETE' });
-}
-
 export async function runDiscoverySearch(input = {}) {
   if (isAgentHttpConfigured()) {
     return agentFetch('/discovery/search', { method: 'POST', body: input });
@@ -208,12 +178,3 @@ export async function getDiscoveryCvSuggestions(listingId) {
   };
 }
 
-export async function promoteDiscoveryToApplication({ listingId, status = 'to_apply' }) {
-  if (!isAgentHttpConfigured()) {
-    throw new Error('Connect VITE_AGENT_HTTP_URL to promote Discovery into Applications');
-  }
-  return agentFetch('/discovery/promote', {
-    method: 'POST',
-    body: { listingId, status },
-  });
-}

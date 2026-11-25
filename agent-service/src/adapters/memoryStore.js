@@ -16,6 +16,7 @@ export function createMemoryStore() {
     goals: [],
     habits: [],
     applications: [],
+    applicationEvents: [],
     weeklyPlanProposal: null,
     dayPlanChangeLog: [],
   };
@@ -154,15 +155,6 @@ export function createMemoryStore() {
     async listGoals() {
       return structuredClone(state.goals);
     },
-    async listHabits() {
-      return structuredClone(state.habits);
-    },
-    async upsertHabit(habit) {
-      const idx = state.habits.findIndex((h) => h.id === habit.id);
-      if (idx >= 0) state.habits[idx] = structuredClone(habit);
-      else state.habits.push(structuredClone(habit));
-      return structuredClone(habit);
-    },
     async listApplications() {
       return structuredClone(state.applications);
     },
@@ -172,8 +164,20 @@ export function createMemoryStore() {
       else state.applications.push(structuredClone(application));
       return structuredClone(application);
     },
-    async deleteApplication(id) {
-      state.applications = state.applications.filter((a) => a.id !== id);
+    async listApplicationEvents({ from }) {
+      return structuredClone(state.applicationEvents.filter((e) => e.onDate >= from));
+    },
+    async appendApplicationEvent(event) {
+      state.applicationEvents.push(structuredClone(event));
+    },
+    async listHabits() {
+      return structuredClone(state.habits);
+    },
+    async upsertHabit(habit) {
+      const idx = state.habits.findIndex((h) => h.id === habit.id);
+      if (idx >= 0) state.habits[idx] = structuredClone(habit);
+      else state.habits.push(structuredClone(habit));
+      return structuredClone(habit);
     },
     async saveWeeklyPlanProposal(proposal) {
       state.weeklyPlanProposal = structuredClone(proposal);

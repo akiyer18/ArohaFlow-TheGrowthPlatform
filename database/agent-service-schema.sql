@@ -85,8 +85,9 @@ CREATE TABLE IF NOT EXISTS agent_habits (
   id TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   scheduled_days JSONB NOT NULL DEFAULT '[]'::jsonb,
-  time_anchor TEXT NOT NULL
+  time_anchor TEXT
 );
+-- Owner, Minimum Version, Season, check-in level and RLS: database/habits-store-migration.sql (ADR-0011).
 
 CREATE TABLE IF NOT EXISTS agent_sender_allowlist (
   id TEXT PRIMARY KEY,
@@ -101,15 +102,6 @@ CREATE TABLE IF NOT EXISTS agent_goals (
 CREATE TABLE IF NOT EXISTS agent_weekly_plan_proposals (
   id TEXT PRIMARY KEY,
   payload JSONB NOT NULL DEFAULT '{}'::jsonb
-);
-
-CREATE TABLE IF NOT EXISTS agent_applications (
-  id TEXT PRIMARY KEY,
-  company TEXT NOT NULL,
-  role_title TEXT NOT NULL,
-  link TEXT NOT NULL DEFAULT '',
-  notes TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL
 );
 
 INSERT INTO agent_streak (id, count, freeze_remaining_this_week, freeze_week_key)
@@ -137,8 +129,7 @@ BEGIN
     'agent_habits',
     'agent_sender_allowlist',
     'agent_goals',
-    'agent_weekly_plan_proposals',
-    'agent_applications'
+    'agent_weekly_plan_proposals'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

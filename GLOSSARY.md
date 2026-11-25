@@ -13,7 +13,7 @@ The server-side background worker that reads external sources on a schedule, app
 _Avoid_: bot, AI assistant, MCP server (MCP is a client interface onto the Agent Service's tools, not the service itself)
 
 **Store**:
-The module the Agent Service (and later the OS UI) uses to read and write life data — Day Plans, Email Digest, Goals, Actions, Microactions, Applications, Habits (scheduled days + time anchors), Habit Check-ins, Daily Points, Calendar Events, Sender Allowlist, Agent Activity. Callers never speak PostgREST; Local/Supabase/in-memory fakes are adapters behind this interface.
+The module the Agent Service and the OS UI use to read and write life data — Day Plans, Email Digest, Goals, Actions, Microactions, Applications, Habits (scheduled days + time anchors), Habit Check-ins, Daily Points, Calendar Events, Sender Allowlist, Agent Activity. Callers never speak PostgREST; Local/Supabase/in-memory fakes are adapters behind this interface.
 _Avoid_: database, repository (OK internally), dataClient, supabase client
 
 **Day Plan**:
@@ -69,8 +69,28 @@ One sentence stating the day’s purpose, written when locking the Day Plan. Rea
 _Avoid_: motto, affirmation, daily theme (marketing)
 
 **Habit Check-in**:
-An explicit user signal that a standing habit was done today (e.g. pressing "went to gym"). Distinct from the Fixed Block that reserved time for it. Awards Daily Points only on check-in.
+An explicit user signal that a standing habit was done today (e.g. pressing "went to gym"), at full or Minimum Version level. Distinct from the Fixed Block that reserved time for it. Awards Daily Points only on check-in: 10 full, 5 minimum (ADR-0010).
 _Avoid_: completion (too generic alone), log (ambiguous with Habit Log in legacy code)
+
+**Minimum Version**:
+The smaller form of a habit that still keeps it on a bad day (Gym → "10-min walk"). Counts as kept for Rolling Consistency and the Weekly Grade; earns half the check-in points.
+_Avoid_: fallback, cheat day, partial habit
+
+**Rolling Consistency**:
+Check-ins over a habit's scheduled days in the last 14 days ("11 of 12"). Unscheduled days, Season days and today before check-in do not count. A miss lowers it by one day; it never resets.
+_Avoid_: streak, chain, success rate
+
+**Season**:
+A deliberate pause of a habit with a reason and end date (travel, sick, exam week). Season days cost nothing and earn nothing.
+_Avoid_: freeze, skip, break
+
+**Quiet habit**:
+A habit with no check-in across its last 14 days and at least 3 scheduled days in that window. Shown apart, left out of the Weekly Grade, never called broken; one action picks it back up.
+_Avoid_: broken, failed, lost streak
+
+**Weekly Grade**:
+The week's habit standing so far: kept scheduled days over scheduled days across habits that are not quiet. Locked in, Strong, Solid, Patchy or Reset (a fresh start, not a failure).
+_Avoid_: score, rank, daily pass/fail
 
 **Daily Points**:
 The single explainable score earned today from Completions, counted toward the Daily Point Target.
@@ -93,15 +113,23 @@ The user-maintained list of email addresses and domains whose mail is always tre
 _Avoid_: contacts sync (not implied), VIP (marketing term)
 
 **Application**:
-A tracked job application the user is managing (company, role title, link, short notes, status: To apply / Applied / Interviewing / Offer / Rejected). The Application itself is the CRM record in the Applications **Tracker**. Linking Applications to Microactions under a job-search Action is deferred past v1 shell.
-_Avoid_: job (too vague), opportunity (ambiguous), next step (deferred field)
+A tracked job application the user is managing: company, role, stage, next step. Stages are Saved, Applied, Interviewing, Offer and Closed (with a reason: Rejected, Withdrawn, No reply, Accepted). Every stage move is recorded as a stage event. May link to Microactions under a job-search Action; the Application itself is the CRM record (ADR-0012).
+
+**Next step** (Application):
+The one dated thing to do next on an Application ("Send portfolio link", by Friday). Overdue and today's next steps lead the Applications screen.
+_Avoid_: task, reminder
+
+**Follow-up** (Application):
+A nudge, not a failure: an Application waiting on the other side (Applied or Interviewing) with no dated next step and no stage move for 10 days.
+_Avoid_: stale, dead, ghosted (as a state)
+_Avoid_: job (too vague), opportunity (ambiguous)
 
 **Discovery**:
-The Applications OS section (and Agent Service tools) that surfaces career-ops search hits — open/fresh listings with scores, JD text, recency (posted or discovered), and liveness — before the user explicitly promotes one into an Application. Not auto-merged into Tracker; never submits to an ATS.
+The Applications OS section (and Agent Service tools) that surfaces career-ops search hits — open/fresh listings with scores, JD text, recency (posted or discovered), and liveness — before the user explicitly promotes one onto the Applications board as Saved. Not auto-merged into the board; never submits to an ATS.
 _Avoid_: inbox (career-ops file name), job board, scrape results
 
 **Job Profile**:
-A career-ops search archetype (target titles, locations, exclusions, attached CV) used when running Discovery. Owned as adapter-private config under career-ops; ArohaFlow does not invent a second profile store in v1.
+A career-ops search archetype (target titles, locations, exclusions, attached CV) used when running Discovery. Kept as local config in `career-data/` (profile.yml, cv.md); ArohaFlow does not invent a second profile store in v1.
 _Avoid_: persona, resume template
 
 **CV Suggestion**:
@@ -129,8 +157,8 @@ A timed commitment synced from Google Calendar (read-only into ArohaFlow). Day P
 _Avoid_: Block (Blocks are plan segments, not synced meetings)
 
 **Streak**:
-Count of consecutive days the Daily Point Target was met. One freeze per ISO week may preserve the Streak when the target is missed. Distinct from per-habit consistency (unscheduled habit days never break that habit’s consistency).
-_Avoid_: chain, combo
+Retired from the UI by ADR-0010 in favour of Rolling Consistency and the Weekly Grade. Was: consecutive days the Daily Point Target was met, with one freeze per ISO week. The Agent Service `streak` tool remains until the Store carries check-in levels and Seasons.
+_Avoid_: chain, combo, freeze
 
 **Agent Activity**:
 A human-readable log of what the Agent Service last did (syncs, digest size, Day Plan proposed). Lives on Analytics for weekly review — not on Today.

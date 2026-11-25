@@ -97,13 +97,11 @@ describe('Application Discovery (#46)', () => {
 
   it('marks Discovery hits already present in the Applications tracker', async () => {
     const { agent } = createAgent();
-    await agent.upsertApplication({
-      id: 'app-existing',
+    await agent.addApplication({
       company: 'Acme',
-      roleTitle: 'AI Engineer',
-      link: 'https://jobs.acme.example/ai',
-      notes: '',
-      status: 'applied',
+      role: 'AI Engineer',
+      url: 'https://jobs.acme.example/ai',
+      stage: 'applied',
     });
 
     const result = await agent.runDiscoverySearch({});
@@ -120,30 +118,23 @@ describe('Application Discovery (#46)', () => {
     expect(tips.keywords[0].keyword).toBe('evaluation');
   });
 
-  it('promoteDiscoveryToApplication creates a Tracker Application and is idempotent by link', async () => {
+  it('promoteDiscoveryToApplication saves a hit on the Applications board and is idempotent by link', async () => {
     const { agent } = createAgent();
 
-    const first = await agent.promoteDiscoveryToApplication({
-      listingId: 'job-open-fresh',
-      status: 'to_apply',
-    });
+    const first = await agent.promoteDiscoveryToApplication({ listingId: 'job-open-fresh' });
     expect(first).toMatchObject({
       company: 'Acme',
-      roleTitle: 'AI Engineer',
-      link: 'https://jobs.acme.example/ai',
-      status: 'to_apply',
+      role: 'AI Engineer',
+      url: 'https://jobs.acme.example/ai',
+      stage: 'saved',
+      source: 'Discovery',
     });
-    expect(first.id).toMatch(/^app-discovery-/);
 
-    const second = await agent.promoteDiscoveryToApplication({
-      listingId: 'job-open-fresh',
-      status: 'applied',
-    });
+    const second = await agent.promoteDiscoveryToApplication({ listingId: 'job-open-fresh' });
     expect(second.id).toBe(first.id);
-    expect(second.status).toBe('applied');
 
     const listed = await agent.listApplications();
-    expect(listed).toHaveLength(1);
-    expect(listed[0].link).toBe('https://jobs.acme.example/ai');
+    expect(listed.applications).toHaveLength(1);
+    expect(listed.applications[0].url).toBe('https://jobs.acme.example/ai');
   });
 });

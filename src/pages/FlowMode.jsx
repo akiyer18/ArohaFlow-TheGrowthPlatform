@@ -7,15 +7,12 @@ import AppHeader from '../components/layout/AppHeader';
 import { PageContainer } from '../components/ui';
 import {
   getTasks,
-  getHabits,
-  getLogsForHabits,
   completeTask,
   updateTask,
-  logCompletion,
   getTodayEffortAndMomentum,
   createFlowSession,
 } from '../services';
-import { isRequiredDay } from '../utils/streakUtils';
+import { checkIn, getHabitsDueOn } from '../modules/habits';
 import { toDateKey } from '../utils/date';
 
 export default function FlowMode() {
@@ -37,38 +34,16 @@ export default function FlowMode() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [tasksRes, habitsRes, effortMomentum] = await Promise.all([
+      const [tasksRes, due, effortMomentum] = await Promise.all([
         getTasks({ startDate: todayStart, endDate: todayEnd }),
-        getHabits({ archived: false }),
+        getHabitsDueOn(today),
         getTodayEffortAndMomentum(),
       ]);
       setTasks(tasksRes ?? []);
       setEffort(effortMomentum?.effort ?? null);
-      const habitList = habitsRes ?? [];
-      if (!habitList.length) {
-        setHabits([]);
-        setLoading(false);
-        return;
-      }
-      const habitIds = habitList.map((h) => h.id);
-      const logsByHabit = await getLogsForHabits(habitIds, today, today);
-      const countByHabit = {};
-      Object.entries(logsByHabit || {}).forEach(([hid, logs]) => {
-        const total = (logs || []).reduce((s, log) => s + (log.count ?? 1), 0);
-        if (total > 0) countByHabit[hid] = total;
-      });
-      const startDateStr = today;
-      const withStatus = habitList
-        .filter((habit) => {
-          const start = habit.start_date ? toDateKey(habit.start_date) : today;
-          return isRequiredDay(today, habit.frequency_type, habit.frequency_value || {}, start);
-        })
-        .map((habit) => {
-          const count = countByHabit[habit.id] ?? 0;
-          const target = habit.target_per_day ?? 1;
-          return { habit, count, target, completed: count >= target };
-        });
-      setHabits(withStatus);
+      setHabits(
+        due.map(({ habit, kept }) => ({ habit, count: kept ? 1 : 0, target: 1, completed: kept })),
+      );
     } catch (err) {
       console.error('FlowMode load', err);
     } finally {
@@ -136,9 +111,9 @@ export default function FlowMode() {
   );
 
   const handleLogHabit = useCallback(
-    async (habitId) => {
+    async (habit) => {
       try {
-        await logCompletion(habitId, today, 1);
+        await checkIn({ habit, date: today, level: 'full' });
         load();
       } catch (err) {
         console.error('Log habit', err);
@@ -274,7 +249,7 @@ export default function FlowMode() {
                     >
                       <button
                         type="button"
-                        onClick={() => !completed && handleLogHabit(habit.id)}
+                        onClick={() => !completed && handleLogHabit(habit)}
                         className="flex-shrink-0 rounded p-1 hover:bg-white/10"
                         aria-label={completed ? 'Done' : 'Mark complete'}
                       >
@@ -289,7 +264,7 @@ export default function FlowMode() {
                           completed ? 'text-slate-400' : 'text-slate-200'
                         }`}
                       >
-                        {habit.title}
+                        {habit.label}
                       </span>
                       <span className="text-xs text-slate-500">
                         {count}/{target}

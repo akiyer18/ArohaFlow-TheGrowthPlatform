@@ -1,0 +1,557 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Coral (deal 1/3, seed calm-personal-day-planner-5ffd·749c7d25·2026-11-24·r0) · redesign: restyle
+ * nav: top bar, the day's destinations in a pressed groove with one cotton card riding to the current screen · signature: Day Plan drawn as a calendar column beside its list · states: loading, empty, error, full
+ * axes: light/grotesk-sans/warm · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 · weakest: E, legacy screens still open in the old dark frame until each is moved into the shell */
+/* Hallmark · waive 74 · legacy Tailwind app.* tokens coexist outside .os-root; OS screens paint only Coral --color-* tokens */
+/* Hallmark · waive 11 · Coral Controls specify the 1px hover lift for every letterpress card · the lift is one control family (letterpress cards) shared by buttons, block actions and the menu toggle */
+/* Hallmark · answered F4 · Coral has two control recipes: ink board for the one primary, cotton card for the rest */
+
+/* ---------- Root and shell ---------- */
+
+.os-root {
+  min-height: 100vh;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.os-root *,
+.os-root *::before,
+.os-root *::after {
+  box-sizing: border-box;
+}
+
+.os-root :where(h1, h2, h3) {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.1;
+  overflow-wrap: break-word;
+  min-width: 0;
+  text-wrap: balance;
+}
+
+.os-root :where(p) {
+  margin: 0;
+  font-size: inherit;
+  line-height: 1.5;
+}
+
+.os-root :focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.os-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.os-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky-nav);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-lg);
+  min-height: 64px;
+  padding: var(--space-sm) max(var(--space-lg), (100% - var(--container)) / 2 + var(--space-lg));
+  background: color-mix(in oklab, var(--color-paper) 88%, transparent);
+  backdrop-filter: saturate(1.2) blur(12px);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.os-brand {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-ink);
+  text-decoration: none;
+  border-radius: var(--radius-input);
+}
+
+/* The nav is a groove pressed into the paper; a cotton card rides to the current screen. */
+.os-nav {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3xs);
+  padding: var(--space-2xs);
+  border-radius: 12px;
+  background: var(--color-paper-2);
+  box-shadow: var(--press-groove);
+  min-width: 0;
+}
+
+.os-nav a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-stock);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--dur-micro) var(--ease-out);
+}
+
+.os-nav a:hover {
+  color: var(--color-ink);
+}
+
+.os-nav a:active {
+  transform: translateY(1px);
+}
+
+.os-nav a[aria-current='page'] {
+  color: var(--color-print);
+}
+
+.os-nav-label {
+  position: relative;
+  z-index: 1;
+}
+
+.os-nav-card {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-stock);
+  background: var(--color-cotton);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+}
+
+.os-topbar-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.os-topbar-date {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.os-nav-toggle {
+  display: none;
+}
+
+.os-main {
+  width: min(100% - 2 * var(--space-lg), var(--container));
+  margin-inline: auto;
+  padding: var(--space-xl) 0 var(--space-2xl);
+}
+
+.os-route {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+@media (max-width: 75rem) {
+  .os-topbar-date {
+    display: none;
+  }
+}
+
+@media (max-width: 60rem) {
+  .os-topbar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    padding-inline: var(--space-md);
+  }
+
+  .os-main {
+    width: min(100% - 2 * var(--space-md), var(--container));
+    padding-top: var(--space-lg);
+  }
+
+  .os-nav {
+    display: none;
+  }
+
+  .os-nav.is-open {
+    display: grid;
+    position: absolute;
+    top: 100%;
+    left: var(--space-md);
+    right: var(--space-md);
+    margin-top: var(--space-xs);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-self: stretch;
+    z-index: var(--z-dropdown);
+  }
+
+  .os-nav-toggle {
+    display: inline-flex;
+  }
+}
+
+/* ---------- Controls: letterpress cards ---------- */
+
+.os-btn,
+.os-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  min-height: 40px;
+  padding: 0 var(--space-md);
+  border: 0;
+  border-radius: var(--radius-stock);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--dur-short) var(--ease-out),
+    box-shadow var(--dur-short) var(--ease-out),
+    opacity var(--dur-micro) var(--ease-out);
+}
+
+.os-btn-secondary,
+.os-nav-toggle,
+.os-block-btn {
+  background: var(--color-cotton);
+  color: var(--color-print);
+  text-shadow: 0.5px 0.75px 0 var(--color-cotton);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+}
+
+.os-btn-primary {
+  background: var(--color-board);
+  color: var(--color-board-type);
+  box-shadow: var(--cast-stock);
+}
+
+.os-btn:hover:not(:disabled),
+.os-nav-toggle:hover,
+.os-block-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--edge-stock), var(--cast-stock-lift);
+}
+
+.os-btn:active:not(:disabled),
+.os-nav-toggle:active,
+.os-block-btn:active {
+  transform: translateY(1px);
+  box-shadow: var(--edge-stock);
+}
+
+@media (min-width: 60.01rem) {
+  .os-topbar .os-nav-toggle {
+    display: none;
+  }
+}
+
+.os-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.os-btn[aria-busy='true'] {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.os-block-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--space-sm);
+  border: 0;
+  border-radius: var(--radius-stock);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    transform var(--dur-short) var(--ease-out),
+    box-shadow var(--dur-short) var(--ease-out);
+}
+
+.os-block-btn-active {
+  box-shadow: var(--press-groove);
+  background: var(--color-paper-2);
+}
+
+.os-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-sm);
+  border: var(--rule-hair) solid var(--color-muted);
+  border-radius: var(--radius-input);
+  background: var(--color-cotton);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  transition: border-color var(--dur-micro) var(--ease-out);
+}
+
+.os-input::placeholder {
+  color: var(--color-muted);
+}
+
+.os-input:hover {
+  border-color: var(--color-ink-2);
+}
+
+.os-input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 0;
+  border-color: var(--color-focus);
+}
+
+.os-input:disabled {
+  border-color: var(--color-rule-2);
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.os-inline-link {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--color-rule-2);
+  text-underline-offset: 3px;
+  border-radius: 2px;
+  transition: text-decoration-color var(--dur-micro) var(--ease-out);
+}
+
+.os-inline-link:hover {
+  text-decoration-color: var(--color-accent-2);
+}
+
+/* ---------- Shared surfaces ---------- */
+
+.os-panel {
+  min-width: 0;
+  padding: var(--space-lg);
+  border-radius: var(--radius-card);
+  background: var(--color-cotton);
+  box-shadow: var(--edge-stock), var(--cast-stock);
+}
+
+.os-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.os-panel-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: var(--text-title);
+  letter-spacing: var(--tracking-display);
+  color: var(--color-ink);
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.os-meta {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.os-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.os-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.os-stack {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.os-today-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+}
+
+@media (max-width: 60rem) {
+  .os-today-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.os-fig {
+  font-family: var(--font-outlier);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.os-list li {
+  display: grid;
+  gap: var(--space-3xs);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.os-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.os-list-title {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.os-list-meta {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+.os-state {
+  padding: var(--space-md) 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.os-state-action {
+  margin-top: var(--space-sm);
+}
+
+.os-skeleton {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.os-skeleton span {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-input);
+  background: var(--color-paper-3);
+}
+
+.os-warn {
+  margin: var(--space-sm) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-input);
+  background: var(--color-paper-2);
+  box-shadow: var(--press-groove);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}
+
+/* ---------- Calendar view (kept for the Calendar screen until its redesign) ---------- */
+
+.os-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-xs);
+  margin-bottom: var(--space-xs);
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.os-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-xs);
+}
+
+.os-cal-cell {
+  min-height: 72px;
+  padding: var(--space-xs);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-input);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.os-cal-pad {
+  border-color: transparent;
+  background: transparent;
+}
+
+.os-cal-day {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.os-cal-anchor {
+  font-size: var(--text-xs);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.os-cal-chip {
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.os-cal-chip-plan {
+  color: var(--color-accent-2);
+}
+
+.os-heat-done {
+  background: color-mix(in oklab, var(--color-accent) 26%, var(--color-cotton));
+}
+
+.os-heat-missed {
+  background: var(--color-paper-3);
+}
+
+.os-heat-planned {
+  background: var(--color-paper-2);
+}
+
+.os-heat-off {
+  background: var(--color-paper);
+  opacity: 0.72;
+}
+
+/* ---------- Motion fallback ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .os-root *,
+  .os-root *::before,
+  .os-root *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
