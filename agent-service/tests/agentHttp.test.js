@@ -65,6 +65,9 @@ function fakeFacade() {
         keywords: [{ keyword: 'evaluation', experienceHint: 'Use eval language.' }],
       };
     },
+    async refreshDiscovery() {
+      return { companiesRead: 2, added: 1, failed: [] };
+    },
     async promoteDiscoveryToApplication() {
       return {
         id: 'app-discovery-job-1',
@@ -241,6 +244,10 @@ describe('Agent HTTP (#13)', () => {
       listingId: 'job-1',
       sections: [{ section: 'experience' }],
     });
+
+    const refreshRes = await fetch(`${base}/discovery/refresh`, { method: 'POST' });
+    expect(refreshRes.status).toBe(200);
+    expect(await refreshRes.json()).toMatchObject({ companiesRead: 2, added: 1 });
 
     const promoteRes = await fetch(`${base}/discovery/promote`, {
       method: 'POST',

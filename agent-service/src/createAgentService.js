@@ -157,6 +157,11 @@ export function createAgentService(deps) {
       return store.listSenderAllowlist();
     },
 
+    async refreshDiscovery() {
+      if (!careerOps) throw new Error('careerOps port required to refresh Discovery');
+      return careerOps.refreshListings();
+    },
+
     async runDiscoverySearch(input) {
       return runDiscoverySearch({ store, careerOps, clock }, input ?? {});
     },

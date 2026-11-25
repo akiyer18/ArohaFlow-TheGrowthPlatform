@@ -158,6 +158,13 @@ export async function saveAllowlist(entries) {
   return agentFetch('/allowlist', { method: 'PUT', body: entries });
 }
 
+export async function refreshDiscovery() {
+  if (!isAgentHttpConfigured()) {
+    throw new Error('Connect VITE_AGENT_HTTP_URL to refresh Discovery listings');
+  }
+  return agentFetch('/discovery/refresh', { method: 'POST' });
+}
+
 export async function runDiscoverySearch(input = {}) {
   if (isAgentHttpConfigured()) {
     return agentFetch('/discovery/search', { method: 'POST', body: input });

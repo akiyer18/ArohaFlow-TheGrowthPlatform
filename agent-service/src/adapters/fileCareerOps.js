@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { createFetchJson, runDiscoveryScan } from '../discovery/scanJobs.js';
 
 const PENDING_LINE =
   /^- \[ \]\s+(https?:\/\/\S+)(?:\s*\|\s*([^|]+))?(?:\s*\|\s*([^|]+))?(?:\s*\|\s*([^|]+))?(?:\s*\|\s*(.*))?$/;
@@ -160,14 +161,23 @@ function buildCvSuggestions(listing, cvText) {
   };
 }
 
+function readLiveness(livenessPath) {
+  try {
+    return JSON.parse(fs.readFileSync(livenessPath, 'utf8')).links ?? {};
+  } catch {
+    return {};
+  }
+}
+
 /**
- * Local career-ops file adapter: Discovery reads `data/pipeline.md` Pending rows.
- * Does not call live ATS networks or LLMs — scan/evaluate stay in career-ops.
+ * File adapter over a career-data root: Discovery reads `data/pipeline.md` Pending rows and
+ * `data/liveness.json`; refreshListings runs the job scanner (scan.json) to add fresh rows.
  *
- * @param {{ root: string, clock: { todayDateKey(): string, now(): Date } }} options
+ * @param {{ root: string, clock: { todayDateKey(): string, now(): Date }, fetchJson?: Function, env?: object }} options
  */
-export function createFileCareerOps({ root, clock }) {
+export function createFileCareerOps({ root, clock, fetchJson = createFetchJson(), env = {} }) {
   const pipelinePath = path.join(root, 'data', 'pipeline.md');
+  const livenessPath = path.join(root, 'data', 'liveness.json');
   const profilePath = path.join(root, 'config', 'profile.yml');
   const cvPath = path.join(root, 'cv.md');
 
@@ -176,6 +186,7 @@ export function createFileCareerOps({ root, clock }) {
     const profile = readText(profilePath);
     const primaryRoles = readPrimaryRoles(profile);
     const discoveredAt = clock.todayDateKey();
+    const liveness = readLiveness(livenessPath);
 
     /** @type {Map<string, import('../ports/careerOps.js').CareerOpsListing>} */
     const byLink = new Map();
@@ -204,7 +215,7 @@ export function createFileCareerOps({ root, clock }) {
         score,
         postedAt: pending.postedAt,
         discoveredAt,
-        liveness: 'open',
+        liveness: liveness[pending.link] ?? 'uncertain',
       });
     }
 
@@ -212,6 +223,10 @@ export function createFileCareerOps({ root, clock }) {
   }
 
   return {
+    async refreshListings() {
+      return runDiscoveryScan({ root, fetchJson, clock, env });
+    },
+
     async searchListings(_input = {}) {
       return loadListings().map((l) => ({ ...l }));
     },

@@ -125,8 +125,8 @@ _Avoid_: stale, dead, ghosted (as a state)
 _Avoid_: job (too vague), opportunity (ambiguous)
 
 **Discovery**:
-The Applications OS section (and Agent Service tools) that surfaces career-ops search hits — open/fresh listings with scores, JD text, recency (posted or discovered), and liveness — before the user explicitly promotes one onto the Applications board as Saved. Not auto-merged into the board; never submits to an ATS.
-_Avoid_: inbox (career-ops file name), job board, scrape results
+The Applications OS section (and Agent Service tools) that surfaces job listings scanned from company boards and job sites (ADR-0013) — listings with scores, recency (posted or discovered), and liveness (open, expired, uncertain) — before the user explicitly promotes one onto the Applications board as Saved. Not auto-merged into the board; never submits to an ATS.
+_Avoid_: inbox (career-ops file name), scrape results
 
 **Job Profile**:
 A career-ops search archetype (target titles, locations, exclusions, attached CV) used when running Discovery. Kept as local config in `career-data/` (profile.yml, cv.md); ArohaFlow does not invent a second profile store in v1.

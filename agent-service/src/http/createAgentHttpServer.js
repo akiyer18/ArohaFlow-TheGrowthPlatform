@@ -113,6 +113,9 @@ export async function createAgentHttpServer(options) {
     if (method === 'GET' && pathname === '/applications') {
       return agent.listApplications();
     }
+    if (method === 'POST' && pathname === '/discovery/refresh') {
+      return agent.refreshDiscovery();
+    }
     if (method === 'POST' && pathname === '/discovery/search') {
       return agent.runDiscoverySearch(body ?? {});
     }

@@ -77,12 +77,56 @@ describe('file career-ops Discovery adapter (#46)', () => {
       roleTitle: 'Forward Deployed Engineer - EMEA',
       link: 'https://jobs.ashbyhq.com/n8n/abc',
       postedAt: '2026-11-16',
-      liveness: 'open',
+      liveness: 'uncertain',
     });
     expect(n8n.link).not.toContain('.example');
     expect(n8n.score).toBeGreaterThan(
       result.results.find((r) => r.company === 'Celonis').score,
     );
+  });
+
+  it('refreshDiscovery scans boards, appends new rows, and records liveness', async () => {
+    fs.writeFileSync(
+      path.join(root, 'scan.json'),
+      JSON.stringify({
+        titles: { include: ['Forward Deployed', 'AI Engineer'], exclude: [] },
+        locations: { include: ['Germany', 'Netherlands'] },
+        companies: [{ name: 'n8n', ats: 'ashby', slug: 'n8n' }],
+      }),
+    );
+    const fetchJson = async (url) => {
+      expect(url).toBe('https://api.ashbyhq.com/posting-api/job-board/n8n');
+      return {
+        jobs: [
+          {
+            id: 'abc',
+            title: 'Forward Deployed Engineer - EMEA',
+            jobUrl: 'https://jobs.ashbyhq.com/n8n/abc',
+            location: 'Netherlands',
+            publishedAt: '2026-11-16T00:00:00Z',
+          },
+          {
+            id: 'new-1',
+            title: 'AI Engineer',
+            jobUrl: 'https://jobs.ashbyhq.com/n8n/new-1',
+            location: 'Berlin, Germany',
+            publishedAt: '2026-11-19T00:00:00Z',
+          },
+        ],
+      };
+    };
+    const clock = createFixedClock(new Date('2026-11-20T12:00:00.000Z'));
+    const careerOps = createFileCareerOps({ root, clock, fetchJson });
+    const agent = createAgentService({ clock, store: createMemoryStore(), careerOps });
+
+    const summary = await agent.refreshDiscovery();
+    expect(summary).toMatchObject({ companiesRead: 1, added: 1, failed: [] });
+
+    const { results } = await agent.runDiscoverySearch({ includeExpired: true });
+    const byLink = Object.fromEntries(results.map((r) => [r.link, r.liveness]));
+    expect(byLink['https://jobs.ashbyhq.com/n8n/abc']).toBe('open');
+    expect(byLink['https://jobs.ashbyhq.com/n8n/new-1']).toBe('open');
+    expect(byLink['https://job-boards.greenhouse.io/celonis/jobs/1']).toBe('uncertain');
   });
 
   it('suggestCv returns guidance grounded in cv.md skills for a listing', async () => {

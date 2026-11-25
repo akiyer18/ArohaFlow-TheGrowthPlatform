@@ -46,7 +46,7 @@ function createCareerOpsPort({ env, clock, careerOps }) {
   const root = resolveCareerOpsRoot(env);
   if (root) {
     return {
-      careerOps: createFileCareerOps({ root, clock }),
+      careerOps: createFileCareerOps({ root, clock, env }),
       careerOpsRoot: root,
     };
   }

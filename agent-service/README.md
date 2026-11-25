@@ -59,6 +59,21 @@ VITE_AGENT_HTTP_URL=http://127.0.0.1:8787
 
 Routes map onto facade methods (`/today`, `/calendar-view`, `/goals`, `/actions`, `/microactions`, `/weekly-plan`, `/habits`, `/applications`, `/allowlist`, lock/complete/schedule helpers). Non-loopback bind is rejected. Without `VITE_AGENT_HTTP_URL`, the OS UI keeps portfolio fixtures.
 
+## Discovery job scanner (ADR-0013)
+
+Discovery reads a git-ignored `career-data/` folder (or `CAREER_OPS_ROOT`):
+
+```text
+career-data/
+  scan.json          companies (greenhouse | ashby | lever + slug), title/location keywords, maxPostingAgeDays, aggregators
+  cv.md              CV suggestions
+  config/profile.yml target roles for scoring
+  data/pipeline.md   Pending job rows (the scanner appends here)
+  data/liveness.json open / expired / uncertain per Pending row (written by each refresh)
+```
+
+**Refresh listings** in Discovery (`POST /discovery/refresh`) fetches every source, filters, appends new rows and re-checks liveness. Arbeitnow needs no key; Adzuna is skipped unless `.env.agent` has `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` (free at developer.adzuna.com). Without `career-data/`, Discovery shows demo listings.
+
 ## MCP
 
 Stdio MCP server wraps the same facade (snake_case tool names for Cursor):

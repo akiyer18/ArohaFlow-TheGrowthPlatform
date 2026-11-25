@@ -1,5 +1,5 @@
 /**
- * Career-ops Discovery port — scan / liveness / CV suggestions.
+ * Career-ops Discovery port — refresh (scan + liveness) / search / CV suggestions.
  * Implementations: fake for tests, file/CLI adapter for local career-ops.
  */
 
@@ -30,7 +30,7 @@ export function assertCareerOpsPort(careerOps) {
   if (!careerOps || typeof careerOps !== 'object') {
     throw new Error('careerOps port is required');
   }
-  for (const name of ['searchListings', 'getListing', 'suggestCv']) {
+  for (const name of ['refreshListings', 'searchListings', 'getListing', 'suggestCv']) {
     if (typeof careerOps[name] !== 'function') {
       throw new Error(`careerOps port missing method: ${name}`);
     }

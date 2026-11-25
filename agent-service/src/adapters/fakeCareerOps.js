@@ -12,6 +12,22 @@ export function createFakeCareerOps(options = {}) {
   const byId = new Map(listings.map((l) => [l.id, l]));
 
   return {
+    async refreshListings() {
+      return {
+        scannedAt: null,
+        companies: 0,
+        companiesRead: 0,
+        found: 0,
+        added: 0,
+        filtered: { title: 0, location: 0, age: 0, invalid: 0, duplicate: 0 },
+        open: 0,
+        expired: 0,
+        uncertain: listings.length,
+        failed: [],
+        skipped: ['Demo listings: add career-data/ with scan.json to scan for real'],
+      };
+    },
+
     async searchListings(_input = {}) {
       return listings.map((l) => ({ ...l }));
     },

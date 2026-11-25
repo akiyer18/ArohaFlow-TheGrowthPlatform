@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { getDiscoveryCvSuggestions, runDiscoverySearch } from './loadOsData';
+import { getDiscoveryCvSuggestions, refreshDiscovery, runDiscoverySearch } from './loadOsData';
+import { isAgentHttpConfigured } from './agentHttp';
 
 function livenessClass(value) {
   switch (value) {
@@ -12,6 +13,18 @@ function livenessClass(value) {
     default:
       return 'os-status';
   }
+}
+
+function scanSummaryText(s) {
+  const parts = [
+    `Read ${s.companiesRead} of ${s.companies} company boards`,
+    `${s.found} jobs found`,
+    `${s.added} new`,
+    `${s.expired} closed`,
+  ];
+  const notes = [...(s.skipped ?? [])];
+  if (s.failed?.length) notes.push(`${s.failed.length} source(s) failed: ${s.failed.join(', ')}`);
+  return `${parts.join(' · ')}.${notes.length ? ` ${notes.join('. ')}.` : ''}`;
 }
 
 function normalizeLink(link) {
@@ -29,6 +42,7 @@ export default function DiscoveryPanel({ boardUrls, onSave }) {
   const [selectedId, setSelectedId] = useState(null);
   const [cvTips, setCvTips] = useState(null);
   const [includeExpired, setIncludeExpired] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadTips = async (listingId) => {
     setSelectedId(listingId);
@@ -41,8 +55,22 @@ export default function DiscoveryPanel({ boardUrls, onSave }) {
     }
   };
 
-  const onRun = async () => {
+  const onRefresh = async () => {
     setMessage(null);
+    setRefreshing(true);
+    try {
+      const summary = await refreshDiscovery();
+      await onRun({ keepMessage: true });
+      setMessage(scanSummaryText(summary));
+    } catch (err) {
+      setMessage(err.message || 'Refreshing listings failed');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const onRun = async ({ keepMessage = false } = {}) => {
+    if (!keepMessage) setMessage(null);
     setStatus('loading');
     try {
       const payload = await runDiscoverySearch({ includeExpired });
@@ -90,7 +118,16 @@ export default function DiscoveryPanel({ boardUrls, onSave }) {
           Include expired
         </label>
         <div className="os-toolbar-actions">
-          <button type="button" className="os-btn os-btn-primary" onClick={onRun}>
+          <button
+            type="button"
+            className="os-btn os-btn-secondary"
+            onClick={onRefresh}
+            disabled={refreshing || !isAgentHttpConfigured()}
+            title="Fetch fresh jobs from company boards and job sites, and check which are still open"
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh listings'}
+          </button>
+          <button type="button" className="os-btn os-btn-primary" onClick={() => onRun()} disabled={refreshing}>
             Run search
           </button>
         </div>
@@ -100,6 +137,9 @@ export default function DiscoveryPanel({ boardUrls, onSave }) {
         <p className="ap-notice" role="status">
           {message}
         </p>
+      ) : null}
+      {refreshing ? (
+        <p className="os-state">Checking company boards and job sites… this takes about half a minute.</p>
       ) : null}
       {status === 'loading' ? <p className="os-state">Searching…</p> : null}
       {status === 'error' ? (
