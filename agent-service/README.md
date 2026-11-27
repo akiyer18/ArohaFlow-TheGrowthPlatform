@@ -74,6 +74,12 @@ career-data/
 
 **Refresh listings** in Discovery (`POST /discovery/refresh`) fetches every source, filters, appends new rows and re-checks liveness. Arbeitnow needs no key; Adzuna is skipped unless `.env.agent` has `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` (free at developer.adzuna.com). Without `career-data/`, Discovery shows demo listings.
 
+## Startups list (ADR-0014)
+
+**Find startups** in Applications → Startups (`POST /startups/refresh`) proposes small Dutch AI companies from the YC directory and Tavily search, verifies each on its own website, and keeps those that pass the gate. Results: `career-data/data/startups.json`; settings: `scan.json` → `startups` (searches, targetRoles, minFit, maxNewPerRun, recheckAfterDays).
+
+Env (`.env` or `.env.agent`): `TAVILY_KEY`, and `GROK_API_KEY` (optional `GROK_MODEL`, default `grok-4.7`). To use OpenAI instead: `STARTUPS_LLM_PROVIDER=openai`, `OPENAI_API_KEY`, `OPENAI_MODEL`.
+
 ## MCP
 
 Stdio MCP server wraps the same facade (snake_case tool names for Cursor):

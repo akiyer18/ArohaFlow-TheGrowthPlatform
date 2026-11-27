@@ -165,6 +165,25 @@ export async function refreshDiscovery() {
   return agentFetch('/discovery/refresh', { method: 'POST' });
 }
 
+export async function loadStartups() {
+  if (!isAgentHttpConfigured()) return { updatedAt: null, lastRun: null, companies: [] };
+  return agentFetch('/startups');
+}
+
+export async function findStartups() {
+  if (!isAgentHttpConfigured()) {
+    throw new Error('Connect VITE_AGENT_HTTP_URL to find startups');
+  }
+  return agentFetch('/startups/refresh', { method: 'POST' });
+}
+
+export async function setStartupStatus({ id, status }) {
+  if (!isAgentHttpConfigured()) {
+    throw new Error('Connect VITE_AGENT_HTTP_URL to update startups');
+  }
+  return agentFetch('/startups/status', { method: 'POST', body: { id, status } });
+}
+
 export async function runDiscoverySearch(input = {}) {
   if (isAgentHttpConfigured()) {
     return agentFetch('/discovery/search', { method: 'POST', body: input });

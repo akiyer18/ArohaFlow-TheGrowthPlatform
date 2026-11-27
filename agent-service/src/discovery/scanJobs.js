@@ -118,7 +118,7 @@ export function insertPendingRows(text, lines) {
 
 /* ---------- Scan ---------- */
 
-async function mapLimit(items, limit, fn) {
+export async function mapLimit(items, limit, fn) {
   const results = new Array(items.length);
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {

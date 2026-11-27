@@ -8,6 +8,10 @@ import { createFakeCalendarWrite } from './adapters/fakeCalendarWrite.js';
 import { createStoreFromEnv } from './createStore.js';
 import { createGooglePortsFromEnv } from './createGooglePorts.js';
 import { createFakeCareerOps } from './adapters/fakeCareerOps.js';
+import { createJsonLlmFromEnv } from './adapters/openAiCompatibleLlm.js';
+import { createFileStartups } from './startups/findStartups.js';
+import { createHttpJson } from './startups/sources.js';
+import { createHttpText } from './startups/site.js';
 import {
   createFileCareerOps,
   resolveCareerOpsRoot,
@@ -143,6 +147,15 @@ export function createLocalAgent(options = {}) {
     calendarRead,
     calendarWrite,
     careerOps,
+    startups:
+      options.startups ??
+      createFileStartups({
+        root: careerOpsRoot ?? resolveCareerOpsRoot(env),
+        http: { ...createHttpJson(), ...createHttpText() },
+        llm: createJsonLlmFromEnv(env),
+        tavilyKey: env.TAVILY_KEY || env.TAVILY_API_KEY,
+        clock,
+      }),
   });
 
   return { agent, clock, store, googleKind: google.kind, careerOpsRoot };

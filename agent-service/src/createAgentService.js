@@ -41,7 +41,7 @@ import { assertCareerOpsPort } from './ports/careerOps.js';
  * @param {{ clock: { todayDateKey(): string, now(): Date }, store: object, gmail?: object, llm?: object, calendarRead?: object, calendarWrite?: object, careerOps?: object }} deps
  */
 export function createAgentService(deps) {
-  const { clock, store, gmail, llm, calendarRead, calendarWrite, careerOps } = deps;
+  const { clock, store, gmail, llm, calendarRead, calendarWrite, careerOps, startups } = deps;
 
   if (gmail) {
     assertGmailPortIsReadOnly(gmail);
@@ -155,6 +155,21 @@ export function createAgentService(deps) {
     async setSenderAllowlist(entries) {
       await store.setSenderAllowlist(entries ?? []);
       return store.listSenderAllowlist();
+    },
+
+    async listStartups() {
+      if (!startups) return { updatedAt: null, lastRun: null, companies: [] };
+      return startups.list();
+    },
+
+    async findStartups() {
+      if (!startups) throw new Error('startups port required to find startups');
+      return startups.refresh();
+    },
+
+    async setStartupStatus(input) {
+      if (!startups) throw new Error('startups port required to update a startup');
+      return startups.setStatus(input);
     },
 
     async refreshDiscovery() {
