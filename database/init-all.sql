@@ -203,7 +203,8 @@ CREATE TABLE IF NOT EXISTS calendar_events (
 CREATE INDEX IF NOT EXISTS idx_calendar_events_user_id ON calendar_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_start_at ON calendar_events(start_at);
 
--- RLS: enable on all app tables
+-- RLS: enable on all app tables (Money: accounts/transactions/budget_categories/
+-- planned_expenses/income_ideas). No anon policies — only auth.uid()/dev policies below.
 DO $$
 DECLARE
   t TEXT;

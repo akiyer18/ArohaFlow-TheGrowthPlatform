@@ -10,6 +10,7 @@ import {
   nextStepState,
   stageLabel,
 } from '../modules/applications';
+import DiscoveryPanel from './DiscoveryPanel';
 import './applications.css';
 
 /* ---------- Formatting ---------- */
@@ -234,6 +235,7 @@ export default function ApplicationsPage() {
   const [loadError, setLoadError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [section, setSection] = useState('board');
 
   useEffect(() => {
     let cancelled = false;
@@ -313,6 +315,10 @@ export default function ApplicationsPage() {
   };
 
   const stats = view?.stats;
+  const boardUrls = useMemo(
+    () => new Set((data?.applications ?? []).map((a) => a.url?.trim()).filter(Boolean)),
+    [data],
+  );
 
   return (
     <div className="ap">
@@ -337,7 +343,24 @@ export default function ApplicationsPage() {
               <span className="os-meta">moved this week</span>
             </p>
           ) : null}
-          {!adding && status !== 'empty' ? (
+          <div className="os-segmented" role="tablist" aria-label="Applications sections">
+            {[
+              ['board', 'Board'],
+              ['discovery', 'Discovery'],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={section === id}
+                className={`os-btn os-btn-compact ${section === id ? 'os-btn-primary' : 'os-btn-secondary'}`}
+                onClick={() => setSection(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {section === 'board' && !adding && status !== 'empty' ? (
             <button type="button" className="os-btn os-btn-primary" onClick={() => setAdding(true)} disabled={status === 'loading'}>
               Add application
             </button>
@@ -351,6 +374,10 @@ export default function ApplicationsPage() {
         </p>
       ) : null}
 
+      {section === 'discovery' ? (
+        <DiscoveryPanel boardUrls={boardUrls} onSave={onCreate} />
+      ) : (
+      <>
       {adding ? <AddApplicationForm onSave={onCreate} onCancel={() => setAdding(false)} /> : null}
 
       {status === 'loading' ? (
@@ -472,6 +499,8 @@ export default function ApplicationsPage() {
             </details>
           ) : null}
         </>
+      )}
+      </>
       )}
     </div>
   );

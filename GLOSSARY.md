@@ -53,12 +53,16 @@ Opt-in write of a Day Plan Block / Microaction onto the dedicated ArohaFlow Goog
 _Avoid_: sync (sync is read of external Calendar Events; publish is write of plan Blocks)
 
 **Completion**:
-The only event that awards Daily Points: a Habit Check-in confirmed, a Microaction marked done, an Action closed as done, or a Plan-ready Completion. Time spent without Completion awards nothing.
+The only event that awards Daily Points: a Habit Check-in confirmed, a Microaction marked done, an Action closed as done, a Plan-ready Completion, or an Overachievement Completion. Time spent without Completion awards nothing.
 _Avoid_: progress credit, partial points, time-box expiry reward
 
 **Plan-ready Completion**:
 A Completion granted at the start of a day when the user locked that day’s Day Plan the evening before (Intention + Blocks committed). Worth 10 Daily Points (ADR-0003). Absent lock ⇒ no Plan-ready Completion that day.
 _Avoid_: show-up bonus, planning XP, time-credit
+
+**Overachievement Completion**:
+A Completion for surplus finished Microactions beyond the Locked Day Plan’s planned set. Awards Daily Points only when completed before 18:00 Europe/Amsterdam (work-window end, DST-aware); at or after 18:00 local the Microaction may still complete but grants no Overachievement points. Planned Completions keep normal weights at any hour (ADR-0002 / ADR-0003).
+_Avoid_: overtime bonus, time-in-seat points
 
 **Intention**:
 One sentence stating the day’s purpose, written when locking the Day Plan. Read-only on Today until Unlock → edit → re-lock.
@@ -120,6 +124,18 @@ A nudge, not a failure: an Application waiting on the other side (Applied or Int
 _Avoid_: stale, dead, ghosted (as a state)
 _Avoid_: job (too vague), opportunity (ambiguous)
 
+**Discovery**:
+The Applications OS section (and Agent Service tools) that surfaces career-ops search hits — open/fresh listings with scores, JD text, recency (posted or discovered), and liveness — before the user explicitly promotes one onto the Applications board as Saved. Not auto-merged into the board; never submits to an ATS.
+_Avoid_: inbox (career-ops file name), job board, scrape results
+
+**Job Profile**:
+A career-ops search archetype (target titles, locations, exclusions, attached CV) used when running Discovery. Kept as local config in `career-data/` (profile.yml, cv.md); ArohaFlow does not invent a second profile store in v1.
+_Avoid_: persona, resume template
+
+**CV Suggestion**:
+Section-level and keyword guidance returned for a Discovery listing so the user can tailor their CV before applying. Guidance only — the human edits the CV; the Agent Service does not invent unverified experience or auto-write claims.
+_Avoid_: rewrite, auto-tailor, ATS submit
+
 **Today**:
 The home execution board after login: Intention, Day Plan, Open next Microaction, explainable Daily Points / Daily Point Target / Streak, and a compact Email Digest card (top 3–5 Important Emails with reasons linking to the full digest). Meals appear only as planned Fixed Blocks. Not a place to invent Goals or review Agent Activity.
 _Avoid_: dashboard (legacy hub of module cards), agent console
@@ -163,3 +179,51 @@ _Avoid_: open project
 **Active Microaction**:
 The single Microaction currently in progress on Today. At most one at a time; starting another requires completing or parking the current one (park needs a short reason).
 _Avoid_: current task, focus item (vague)
+
+**Income** (Money):
+Sum of income transactions in the selected calendar month on the Money module overview.
+_Avoid_: cash in, deposits (bank CSV dialect)
+
+**Spent** (Money):
+Sum of expense transactions in the selected calendar month on the Money module overview.
+_Avoid_: outflow, burn (informal)
+
+**Planned** (Money):
+Sum of planned expense costs whose target date falls in the selected calendar month.
+_Avoid_: budget total (ambiguous with category budgets)
+
+**Saved** (Money):
+Income minus Spent for the selected calendar month on the Money glance.
+_Avoid_: net worth, balance (account balance is separate)
+
+**Needs** (Money):
+Spend bucket for essentials (bills, groceries, transport, rent). Part of the editable Needs / Wants / Future split; default target 50% of Income.
+_Avoid_: fixed costs (too narrow)
+
+**Wants** (Money):
+Spend bucket for discretionary lifestyle (entertainment, shopping, dining). Default target 40% of Income when Future is 10%.
+_Avoid_: nice-to-haves (informal only)
+
+**Future** (Money):
+Savings / buffer / own-account transfer bucket. Default target 10% of Income (Nibud-informed).
+_Avoid_: investments portfolio (out of scope)
+
+**Buffer** (Money):
+User-set emergency savings goal with progress against the **Savings** account balance (Nibud BufferBerekenaar-informed framing). Separate from months-of-expenses Runway.
+_Avoid_: rainy-day fund (OK in prose), net worth
+
+**Runway** (Money):
+Months of expenses covered by Savings (`savings balance / Spent` for the selected month). Plan Runway after a suggested transfer uses Savings-after-transfer / month plan total. Shown beside Buffer, not as the Buffer progress itself.
+_Avoid_: burn rate (startup jargon)
+
+**Spending account** (Money):
+The day-to-day account (type `spending` / checking) funded for the month’s plan.
+_Avoid_: current account only (OK as bank label)
+
+**Savings account** (Money):
+The buffer / reserve account (type `savings`). Source of month-start transfers into Spending; Buffer progress reads this balance.
+_Avoid_: investment account
+
+**Transfer suggestion** (Money):
+Month-start amount to move from Savings → Spending: month plan total (rent + planned categories + annual costs / 12 + monthly budget lines) minus Spending balance. Zero or less means no transfer. Reports Savings after transfer, Buffer warning, and plan Runway.
+_Avoid_: auto-transfer (suggestion only)

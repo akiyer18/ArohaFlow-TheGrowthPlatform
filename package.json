@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:os": "node scripts/devOs.js",
     "build": "vite build",
     "server": "node server/index.js",
     "agent:test": "vitest run agent-service/tests src/modules/calendar-view src/modules/money src/modules/auth src/modules/habits src/modules/applications",

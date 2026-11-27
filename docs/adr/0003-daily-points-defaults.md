@@ -1,6 +1,6 @@
 # Daily Points defaults
 
-Completion-only scoring needs starting weights so Today stays explainable. **Decision (v1 defaults, tunable without a new architecture):** Habit Check-in = 10, Microaction Completion = 20, Action Completion = 100, **Plan-ready Completion = 10**, Daily Point Target = 100. One score language (Daily Points); legacy Effort / Momentum / Flow Score are not shown in the new UI.
+Completion-only scoring needs starting weights so Today stays explainable. **Decision (v1 defaults, tunable without a new architecture):** Habit Check-in = 10, Microaction Completion = 20, Action Completion = 100, **Plan-ready Completion = 10**, **Overachievement Completion = 20** (surplus beyond Locked Day Plan, only before 18:00 Europe/Amsterdam — see ADR-0002), Daily Point Target = 100. One score language (Daily Points); legacy Effort / Momentum / Flow Score are not shown in the new UI. Daily Points may exceed the Daily Point Target when Overachievement Completions are earned; Streak still uses the target + freeze rules.
 
 ## Amendment — Streak rules (Today execution board — #19)
 

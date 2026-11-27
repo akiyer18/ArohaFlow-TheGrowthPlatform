@@ -13,12 +13,33 @@ const ACCEPTED_TYPES = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
 };
 
-const DATE_HEADERS = ['date', 'datum', 'transaction date', 'posting date', 'value date', 'booking date'];
-const DESC_HEADERS = ['description', 'transaction', 'details', 'memo', 'narration', 'omschrijving', 'reference'];
-const AMOUNT_HEADERS = ['amount', 'balance', 'bedrag', 'value'];
-const DEBIT_HEADERS = ['debit', 'withdrawal', 'money out', 'out', 'af', 'expense', 'withdrawals'];
-const CREDIT_HEADERS = ['credit', 'deposit', 'money in', 'in', 'bij', 'income', 'deposits'];
-const MERCHANT_HEADERS = ['merchant', 'payee', 'counterparty', 'name', 'description'];
+const DATE_HEADERS = [
+  'date',
+  'datum',
+  'transaction date',
+  'transactiondate',
+  'posting date',
+  'value date',
+  'valuedate',
+  'booking date',
+  'rentedatum',
+];
+const DESC_HEADERS = [
+  'description',
+  'transaction',
+  'details',
+  'memo',
+  'narration',
+  'omschrijving',
+  'naam / omschrijving',
+  'naam tegenpartij',
+  'reference',
+];
+const AMOUNT_HEADERS = ['amount', 'bedrag', 'bedrag (eur)', 'value'];
+const DEBIT_HEADERS = ['debit', 'withdrawal', 'money out', 'expense', 'withdrawals'];
+const CREDIT_HEADERS = ['credit', 'deposit', 'money in', 'income', 'deposits'];
+const DIRECTION_HEADERS = ['af bij', 'debit/credit', 'creditdebit'];
+const MERCHANT_HEADERS = ['merchant', 'payee', 'counterparty', 'naam tegenpartij', 'name'];
 
 function normalizeHeader(h) {
   if (typeof h !== 'string') return '';
@@ -37,6 +58,10 @@ function parseDate(val) {
   if (!val) return null;
   const s = String(val).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Compact YYYYMMDD (ABN-style)
+  if (/^\d{8}$/.test(s)) {
+    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  }
   // DD/MM/YYYY or DD-MM-YYYY
   const dmy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
   if (dmy) {
@@ -55,19 +80,38 @@ function parseDate(val) {
 
 function parseAmount(val) {
   if (val === null || val === undefined || val === '') return null;
-  const s = String(val).replace(/[^\d.-]/g, '').trim();
+  let s = String(val).trim().replace(/\s/g, '');
+  // European decimals: 1.234,56 or 12,50
+  if (/^-?\d{1,3}(\.\d{3})*,\d+$/.test(s) || /^-?\d+,\d+$/.test(s)) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    s = s.replace(/[^\d.-]/g, '');
+  }
   const n = parseFloat(s);
   return Number.isNaN(n) ? null : n;
 }
 
-function buildNormalized(row, dateIdx, descIdx, amountIdx, debitIdx, creditIdx, merchantIdx, headers) {
+function buildNormalized(
+  row,
+  dateIdx,
+  descIdx,
+  amountIdx,
+  debitIdx,
+  creditIdx,
+  merchantIdx,
+  headers,
+  directionIdx = -1,
+) {
   const get = (i) => (i >= 0 && row[i] !== undefined && row[i] !== null ? String(row[i]).trim() : '');
   const getNum = (i) => (i >= 0 && row[i] !== undefined && row[i] !== null ? parseAmount(row[i]) : null);
 
   let dateStr = dateIdx >= 0 ? parseDate(row[dateIdx]) : null;
   if (!dateStr && dateIdx >= 0) dateStr = parseDate(get(dateIdx));
 
-  const desc = descIdx >= 0 ? get(descIdx) : row.filter((_, i) => i !== amountIdx && i !== debitIdx && i !== creditIdx).join(' ');
+  const desc =
+    descIdx >= 0
+      ? get(descIdx)
+      : row.filter((_, i) => i !== amountIdx && i !== debitIdx && i !== creditIdx).join(' ');
   const merchant = merchantIdx >= 0 ? get(merchantIdx) : '';
 
   let amount = null;
@@ -86,7 +130,17 @@ function buildNormalized(row, dateIdx, descIdx, amountIdx, debitIdx, creditIdx, 
   } else if (amountIdx >= 0) {
     amount = getNum(amountIdx);
     if (amount != null) {
-      if (amount < 0) {
+      if (directionIdx >= 0) {
+        const direction = get(directionIdx).toLowerCase();
+        amount = Math.abs(amount);
+        if (direction === 'af' || direction === 'debit' || direction.startsWith('debet')) {
+          type = 'expense';
+        } else if (direction === 'bij' || direction === 'credit') {
+          type = 'income';
+        } else {
+          type = 'expense';
+        }
+      } else if (amount < 0) {
         amount = Math.abs(amount);
         type = 'expense';
       } else {
@@ -109,6 +163,47 @@ function buildNormalized(row, dateIdx, descIdx, amountIdx, debitIdx, creditIdx, 
   };
 }
 
+function sniffCsvDelimiter(text) {
+  const firstLine = String(text || '').split(/\r?\n/)[0] || '';
+  const semis = (firstLine.match(/;/g) || []).length;
+  const commas = (firstLine.match(/,/g) || []).length;
+  return semis > commas ? ';' : ',';
+}
+
+function mapCsvRows(rows) {
+  if (!rows || rows.length < 2) return [];
+  const headerRow = rows[0].map((c) => (c != null ? String(c) : ''));
+  const dateIdx = findColumnIndex(headerRow, DATE_HEADERS);
+  const descIdx = findColumnIndex(headerRow, DESC_HEADERS);
+  const amountIdx = findColumnIndex(headerRow, AMOUNT_HEADERS);
+  const debitIdx = findColumnIndex(headerRow, DEBIT_HEADERS);
+  const creditIdx = findColumnIndex(headerRow, CREDIT_HEADERS);
+  const directionIdx = findColumnIndex(headerRow, DIRECTION_HEADERS);
+  const merchantIdx = findColumnIndex(headerRow, MERCHANT_HEADERS);
+
+  const needAmount = amountIdx >= 0 || (debitIdx >= 0 && creditIdx >= 0);
+  if (dateIdx < 0 || !needAmount) return [];
+
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!Array.isArray(row) || row.every((c) => c === '' || c == null)) continue;
+    const norm = buildNormalized(
+      row,
+      dateIdx,
+      descIdx,
+      amountIdx,
+      debitIdx,
+      creditIdx,
+      merchantIdx,
+      headerRow,
+      directionIdx,
+    );
+    if (norm) out.push(norm);
+  }
+  return out;
+}
+
 export function detectFileType(file) {
   const t = file?.type?.toLowerCase();
   if (ACCEPTED_TYPES[t]) return ACCEPTED_TYPES[t];
@@ -119,40 +214,16 @@ export function detectFileType(file) {
   return null;
 }
 
-export function parseCSV(file) {
+function parseCsvText(text) {
   return new Promise((resolve) => {
     try {
-      Papa.parse(file, {
+      const delimiter = sniffCsvDelimiter(text);
+      Papa.parse(String(text || ''), {
         header: false,
         skipEmptyLines: true,
+        delimiter,
         complete(results) {
-          const rows = results.data || [];
-          if (rows.length < 2) {
-            resolve([]);
-            return;
-          }
-          const headerRow = rows[0].map((c) => (c != null ? String(c) : ''));
-          const dateIdx = findColumnIndex(headerRow, DATE_HEADERS);
-          const descIdx = findColumnIndex(headerRow, DESC_HEADERS);
-          const amountIdx = findColumnIndex(headerRow, AMOUNT_HEADERS);
-          const debitIdx = findColumnIndex(headerRow, DEBIT_HEADERS);
-          const creditIdx = findColumnIndex(headerRow, CREDIT_HEADERS);
-          const merchantIdx = findColumnIndex(headerRow, MERCHANT_HEADERS);
-
-          const needAmount = amountIdx >= 0 || (debitIdx >= 0 && creditIdx >= 0);
-          if (dateIdx < 0 || !needAmount) {
-            resolve([]);
-            return;
-          }
-
-          const out = [];
-          for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            if (!Array.isArray(row) || row.every((c) => c === '' || c == null)) continue;
-            const norm = buildNormalized(row, dateIdx, descIdx, amountIdx, debitIdx, creditIdx, merchantIdx, headerRow);
-            if (norm) out.push(norm);
-          }
-          resolve(out);
+          resolve(mapCsvRows(results.data || []));
         },
         error() {
           resolve([]);
@@ -162,6 +233,21 @@ export function parseCSV(file) {
       resolve([]);
     }
   });
+}
+
+export async function parseCSV(file) {
+  try {
+    if (typeof file === 'string') return parseCsvText(file);
+    if (typeof file?.text === 'function') return parseCsvText(await file.text());
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(parseCsvText(String(reader.result || '')));
+      reader.onerror = () => resolve([]);
+      reader.readAsText(file);
+    });
+  } catch {
+    return [];
+  }
 }
 
 export function parseExcel(file) {

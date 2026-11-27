@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -12,14 +12,12 @@ import {
   markGroceryItemPurchased,
   removeFromInventory,
 } from '../services';
-import AppHeader from '../components/layout/AppHeader';
 import { Badge, Button, Card, Input, Modal, PageContainer, SectionHeader, Select } from '../components/ui';
 
 const categories = ['Produce', 'Dairy', 'Meat', 'Pantry', 'Bakery', 'Frozen', 'Other'];
 
 const GroceryList = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('list');
   const [items, setItems] = useState([]);
   const [inventory, setInventory] = useState([]);
@@ -62,22 +60,37 @@ const GroceryList = () => {
     return grouped;
   }, [items]);
 
-  if (loading) return <div className="min-h-screen" />;
+  if (loading) {
+    return (
+      <div className="os-state os-skeleton" aria-busy="true">
+        <span style={{ width: '40%' }} />
+        <span style={{ width: '65%' }} />
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen">
-      <AppHeader title="Grocery Management" subtitle="Shopping and inventory" onLogout={() => { logout(); navigate('/login'); }} backTo="/dashboard" />
+    <div className="os-stack">
+      <div className="os-toolbar">
+        <div>
+          <h1 className="os-panel-title" style={{ fontSize: 'var(--text-xl)' }}>
+            Grocery list
+          </h1>
+          <p className="os-meta">From your meal plan · check off while shopping</p>
+        </div>
+        <div className="os-toolbar-actions">
+          <Link to="/meal-planning?tab=plan" className="os-btn os-btn-secondary">
+            Back to meal plan
+          </Link>
+          <Button variant={activeTab === 'list' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('list')}>Shopping List</Button>
+          <Button variant={activeTab === 'inventory' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('inventory')}>Inventory</Button>
+          <Button variant={activeTab === 'stats' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('stats')}>Statistics</Button>
+        </div>
+      </div>
       <PageContainer>
         <SectionHeader
           title="Grocery Workspace"
           subtitle="Track shopping items and kitchen inventory in one place."
-          actions={
-            <div className="flex gap-2">
-              <Button variant={activeTab === 'list' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('list')}>Shopping List</Button>
-              <Button variant={activeTab === 'inventory' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('inventory')}>Inventory</Button>
-              <Button variant={activeTab === 'stats' ? 'primary' : 'secondary'} size="sm" onClick={() => setActiveTab('stats')}>Statistics</Button>
-            </div>
-          }
         />
         {error ? <Card className="mb-4 border-rose-900 bg-rose-900/20 text-rose-300">{error}</Card> : null}
 

@@ -5,7 +5,14 @@ import {
   compactDigest,
   nextMicroactionBlock,
 } from './fixtures/todayFixture';
-import { loadToday, loadTomorrowPlan } from './loadToday';
+import {
+  loadToday,
+  loadTomorrowPlan,
+  lockTomorrowPlan,
+  startMicroactionViaAgent,
+  completeMicroactionViaAgent,
+} from './loadToday';
+import { isAgentHttpConfigured } from './agentHttp';
 import './today.css';
 
 /* ---------- Formatting ---------- */
@@ -128,6 +135,7 @@ function RegionState({ status, empty, errorLabel, children }) {
 function completionLabel(entry) {
   if (entry.summary) return entry.summary;
   if (entry.type === 'plan_ready') return 'Plan-ready Completion';
+  if (entry.type === 'overachievement') return `Overachievement · ${entry.points} pts`;
   return entry.type.replace(/_/g, ' ');
 }
 
@@ -171,17 +179,28 @@ export default function TodayPage() {
     }
   };
 
-  const confirmLock = ({ acknowledgeOvercommit }) => {
+  const confirmLock = async ({ acknowledgeOvercommit }) => {
     if (!lockPanel) return;
     const { plan, assessment, intention } = lockPanel;
     if (assessment.overcommitted && !acknowledgeOvercommit) return;
-    const note = intention.trim() ? ` with the intention “${intention.trim()}”` : '';
-    setLockMessage(
-      `Tomorrow (${formatPlanDate(plan.date)}) is locked${note}${
-        acknowledgeOvercommit ? ', overcommit acknowledged' : ''
-      }. The facade lock_day_plan call wires in when the live bridge is connected.`,
-    );
-    setLockPanel(null);
+    try {
+      const result = await lockTomorrowPlan({
+        date: plan.date,
+        intention: intention.trim() || null,
+        acknowledgeOvercommit,
+      });
+      const note = intention.trim() ? ` with the intention “${intention.trim()}”` : '';
+      setLockMessage(
+        result?.stub
+          ? result.message
+          : `Tomorrow (${formatPlanDate(plan.date)}) is locked${note}${
+              acknowledgeOvercommit ? ', overcommit acknowledged' : ''
+            }.`,
+      );
+      setLockPanel(null);
+    } catch (err) {
+      setLockMessage(err.message || 'Could not lock tomorrow’s Day Plan.');
+    }
   };
 
   const blocks = today?.dayPlan?.blocks ?? [];
@@ -203,9 +222,34 @@ export default function TodayPage() {
   const phase = phaseFor(now);
   const nextTitle = today?.nextMicroaction?.title ?? nextBlock?.title;
 
+  const openMicroaction = async (id) => {
+    if (!id) return;
+    setOpenedMicroactionId(id);
+    if (!isAgentHttpConfigured()) return;
+    try {
+      await startMicroactionViaAgent({ microactionId: id });
+      const payload = await loadToday();
+      setToday(payload);
+    } catch (err) {
+      setLockMessage(err.message || 'Could not start Microaction.');
+    }
+  };
+
   const openNext = () => {
     const id = today?.nextMicroaction?.id ?? nextBlock?.microactionId;
-    if (id) setOpenedMicroactionId(id);
+    return openMicroaction(id);
+  };
+
+  const completeOpened = async () => {
+    if (!openedMicroactionId || !isAgentHttpConfigured()) return;
+    try {
+      await completeMicroactionViaAgent({ microactionId: openedMicroactionId });
+      setOpenedMicroactionId(null);
+      const payload = await loadToday();
+      setToday(payload);
+    } catch (err) {
+      setLockMessage(err.message || 'Could not complete Microaction.');
+    }
   };
 
   const planStatus = !today ? status : listBlocks.length ? 'full' : 'empty';
@@ -301,10 +345,16 @@ export default function TodayPage() {
       ) : null}
 
       {openedMicroactionId ? (
-        <p className="td-notice" role="status">
+        <div className="td-notice" role="status">
           Opened {today?.nextMicroaction?.id === openedMicroactionId ? today.nextMicroaction.title : openedMicroactionId}.
-          Mark it complete or park it with the Agent Service tools.
-        </p>
+          {isAgentHttpConfigured() ? (
+            <button type="button" className="os-btn os-btn-primary" onClick={completeOpened}>
+              Complete Microaction
+            </button>
+          ) : (
+            ' Mark it complete or park it with the Agent Service tools.'
+          )}
+        </div>
       ) : null}
 
       {lockPanel ? (
@@ -410,7 +460,7 @@ export default function TodayPage() {
                         <button
                           type="button"
                           className="os-block-btn"
-                          onClick={() => setOpenedMicroactionId(block.microactionId)}
+                          onClick={() => openMicroaction(block.microactionId)}
                         >
                           Open
                         </button>

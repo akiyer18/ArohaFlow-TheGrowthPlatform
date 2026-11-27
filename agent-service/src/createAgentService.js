@@ -28,16 +28,26 @@ import {
   setApplicationNextStep,
 } from './tools/applications.js';
 import { assessDayPlanOvercommit } from './tools/overcommit.js';
+import {
+  runDiscoverySearch,
+  getDiscoveryCvSuggestions,
+  promoteDiscoveryToApplication,
+} from './tools/discovery.js';
+import { upsertGoal, upsertAction, upsertMicroaction } from './tools/goalsAuthoring.js';
+import { assertCareerOpsPort } from './ports/careerOps.js';
 
 /**
  * Agent Service tool facade — primary seam for scheduler, MCP, and tests.
- * @param {{ clock: { todayDateKey(): string, now(): Date }, store: object, gmail?: object, llm?: object, calendarRead?: object, calendarWrite?: object }} deps
+ * @param {{ clock: { todayDateKey(): string, now(): Date }, store: object, gmail?: object, llm?: object, calendarRead?: object, calendarWrite?: object, careerOps?: object }} deps
  */
 export function createAgentService(deps) {
-  const { clock, store, gmail, llm, calendarRead, calendarWrite } = deps;
+  const { clock, store, gmail, llm, calendarRead, calendarWrite, careerOps } = deps;
 
   if (gmail) {
     assertGmailPortIsReadOnly(gmail);
+  }
+  if (careerOps) {
+    assertCareerOpsPort(careerOps);
   }
 
   const facade = {
@@ -110,12 +120,53 @@ export function createAgentService(deps) {
       return scheduleMicroaction({ store, clock }, input);
     },
 
+    async getWeeklyPlanProposal() {
+      return store.getWeeklyPlanProposal();
+    },
+
     async upsertHabit(input) {
       return upsertHabit({ store }, input);
     },
 
     async listHabits() {
       return listHabits({ store });
+    },
+
+    async listGoals() {
+      return store.listGoals();
+    },
+
+    async upsertGoal(input) {
+      return upsertGoal({ store }, input);
+    },
+
+    async upsertAction(input) {
+      return upsertAction({ store }, input);
+    },
+
+    async upsertMicroaction(input) {
+      return upsertMicroaction({ store }, input);
+    },
+
+    async listSenderAllowlist() {
+      return store.listSenderAllowlist();
+    },
+
+    async setSenderAllowlist(entries) {
+      await store.setSenderAllowlist(entries ?? []);
+      return store.listSenderAllowlist();
+    },
+
+    async runDiscoverySearch(input) {
+      return runDiscoverySearch({ store, careerOps, clock }, input ?? {});
+    },
+
+    async getDiscoveryCvSuggestions(input) {
+      return getDiscoveryCvSuggestions({ careerOps }, input ?? {});
+    },
+
+    async promoteDiscoveryToApplication(input) {
+      return promoteDiscoveryToApplication({ store, careerOps, clock }, input ?? {});
     },
 
     async listApplications() {
@@ -136,6 +187,11 @@ export function createAgentService(deps) {
 
     async listCalendarView(input) {
       return listCalendarView({ store, clock }, input);
+    },
+
+    async getDayPlan(input) {
+      const date = input?.date ?? clock.todayDateKey();
+      return store.getDayPlan(date);
     },
 
     async assessDayPlanOvercommit(input) {

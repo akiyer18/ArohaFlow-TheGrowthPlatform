@@ -1,6 +1,7 @@
 import { ActionStatus, BlockKind, DayPlanStatus, MicroactionStatus } from '../domain/statuses.js';
 
 const MAX_ACTIVE_ACTIONS = 3;
+const MAX_MICROACTIONS_PER_DAY = 5;
 const FLEXIBLE_BLOCK_MS = 2 * 60 * 60 * 1000;
 
 function newId(prefix) {
@@ -136,6 +137,9 @@ export async function scheduleMicroaction(deps, input) {
   const blocks = existing?.blocks ? structuredClone(existing.blocks) : [];
   if (!blocks.some((b) => b.microactionId === microactionId)) {
     const flexCount = blocks.filter((b) => b.kind === BlockKind.FLEXIBLE).length;
+    if (flexCount >= MAX_MICROACTIONS_PER_DAY) {
+      throw new Error(`Max ${MAX_MICROACTIONS_PER_DAY} Microactions on a Day Plan`);
+    }
     const startMs = workWindowStart(dateKey) + flexCount * FLEXIBLE_BLOCK_MS;
     blocks.push({
       id: `flex-${microactionId}`,

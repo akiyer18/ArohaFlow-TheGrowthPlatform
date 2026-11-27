@@ -9,4 +9,10 @@ export default defineConfig({
       '/api': { target: 'http://localhost:3001', changeOrigin: true },
     },
   },
+  // Unit tests stay fixture-backed; daily-driver VITE_AGENT_HTTP_URL lives in `.env` for `npm run dev:os` (#32).
+  test: {
+    env: {
+      VITE_AGENT_HTTP_URL: '',
+    },
+  },
 }) 

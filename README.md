@@ -97,11 +97,13 @@ A modern growth and productivity platform that unifies tasks, habits, meals, eve
    - **Local (no backend):** Set `VITE_DATA_SOURCE=local`. No database or Supabase needed; data lives in browser localStorage under a fixed dev user.
    - **Supabase:** Set `VITE_DATA_SOURCE=production` and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Then run the [database setup](#database-setup) in Supabase.
 
-5. **Start the dev server**
+5. **Start the personal OS (daily driver)**
    ```bash
-   npm run dev
+   npm run dev:os
    ```
-   Open the URL shown (e.g. `http://localhost:5173`).
+   Starts Agent Service HTTP (`127.0.0.1:8787`) and Vite together. Requires `VITE_AGENT_HTTP_URL=http://127.0.0.1:8787` in `.env` (see `.env.example`) and Agent Store credentials in `.env.agent` when you want Supabase durability. Open the URL shown (e.g. `http://localhost:5173`).
+
+   For fixture-only portfolio preview (no Agent), leave `VITE_AGENT_HTTP_URL` unset and run `npm run dev` alone.
 
 6. **Build for production**
    ```bash
