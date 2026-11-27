@@ -59,6 +59,7 @@ export async function tavilySearch(http, apiKey, search) {
       topic: search.topic ?? 'general',
       max_results: search.maxResults ?? 8,
       ...(search.timeRange ? { time_range: search.timeRange } : {}),
+      ...(search.excludeDomains ? { exclude_domains: search.excludeDomains } : {}),
       ...(search.rawContent === false ? {} : { include_raw_content: 'text' }),
     },
     { authorization: `Bearer ${apiKey}` },

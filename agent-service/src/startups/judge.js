@@ -61,7 +61,10 @@ const VERDICT_SCHEMA = {
   properties: {
     isOperatingCompany: { type: 'boolean', description: 'The site is this company\'s own, active website' },
     netherlands: { type: 'string', enum: ['headquarters', 'office', 'no', 'unknown'] },
-    aiIsCore: { type: 'boolean', description: 'AI/ML is central to what they build or deliver, not a marketing add-on' },
+    aiIsCore: {
+      type: 'boolean',
+      description: 'The main product or service is built on ML/AI models (the AI is what customers pay for), as the site text shows',
+    },
     kind: {
       type: 'string',
       enum: ['ai-product', 'ai-services', 'recruiter', 'investor', 'media', 'education', 'corporate', 'other'],
@@ -82,6 +85,7 @@ const VERDICT_SCHEMA = {
 function judgeSystem(targetRoles) {
   return `You assess whether a company is a good target for an unsolicited open application (CV by email) from an early-career engineer in the Netherlands looking for roles like: ${targetRoles.join(', ')}.
 Judge ONLY from the website text provided; answer "unknown" or false when the text does not show it. Do not use outside knowledge to fill gaps.
+aiIsCore is true only when the site shows their main product or service is built on machine learning / AI models (e.g. LLM agents, computer vision, ML forecasting, AI chips, AI consultancy). It is false for deep-tech or hardware without ML at its centre (quantum, metrology, photonics, sensors), VR/AR, and ordinary software or services that merely mention "AI", "algorithms" or "smart" features.
 fit (1-5):
 5 = small/medium Dutch AI company with visible engineering hiring (open roles, "we're hiring", recent funding);
 4 = small/medium Dutch AI company that is clearly building and likely to grow, no visible openings;
@@ -114,6 +118,7 @@ export async function judgeCompany(llm, { name, site, sourceNotes, targetRoles }
  */
 export function gateVerdict(v, { minFit = 3 } = {}) {
   if (!v?.isOperatingCompany) return { keep: false, reason: 'not an operating company site' };
+  if (v.netherlands === 'unknown') return { keep: false, reason: 'no Netherlands location shown on its website' };
   if (!['headquarters', 'office'].includes(v.netherlands)) return { keep: false, reason: 'not based in the Netherlands' };
   if (!v.aiIsCore) return { keep: false, reason: 'AI is not core' };
   if (!['ai-product', 'ai-services'].includes(v.kind)) return { keep: false, reason: `kind: ${v.kind}` };

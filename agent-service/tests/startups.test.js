@@ -5,7 +5,12 @@ import path from 'node:path';
 import { createJsonLlm, LlmError } from '../src/adapters/openAiCompatibleLlm.js';
 import { gateVerdict } from '../src/startups/judge.js';
 import { detectAtsBoard, extractRoleEmails, htmlToText, readCompanySite, robotsAllows } from '../src/startups/site.js';
-import { domainMatchesName, listStartups, runStartupSearch, setStartupStatus } from '../src/startups/findStartups.js';
+import {
+  createFileStartupsRepo, createStartups, domainMatchesName, listStartups, runStartupSearch, setStartupStatus,
+} from '../src/startups/findStartups.js';
+import { createSupabaseStartupsRepo } from '../src/startups/supabaseStartups.js';
+import { createJsonLlmFromEnv } from '../src/adapters/openAiCompatibleLlm.js';
+import { createFakeSupabaseClient } from '../src/adapters/fakeSupabaseClient.js';
 import { createFixedClock } from '../src/adapters/fixedClock.js';
 
 const html = (body) => `<!doctype html><html><head><title>x</title><script>var a="no@acme.ai"</script></head><body>${body}</body></html>`;
@@ -148,7 +153,8 @@ describe('Startups: gate', () => {
     expect(gateVerdict(good)).toEqual({ keep: true, reason: null });
   });
   it('rejects by rule, whatever the fit score says', () => {
-    expect(gateVerdict({ ...good, netherlands: 'unknown' }).keep).toBe(false);
+    expect(gateVerdict({ ...good, netherlands: 'unknown' })).toEqual({ keep: false, reason: 'no Netherlands location shown on its website' });
+    expect(gateVerdict({ ...good, netherlands: 'no' }).keep).toBe(false);
     expect(gateVerdict({ ...good, aiIsCore: false }).keep).toBe(false);
     expect(gateVerdict({ ...good, kind: 'recruiter' }).keep).toBe(false);
     expect(gateVerdict({ ...good, size: '500+' }).keep).toBe(false);
@@ -238,6 +244,55 @@ describe('Startups: run', () => {
     expect(listStartups(root).companies).toHaveLength(1);
   });
 
+  it('guesses an obvious domain before searching, skipping parked and non-Dutch look-alikes', async () => {
+    const filler = '<p>' + 'We build computer vision for greenhouses. '.repeat(10) + '</p>';
+    const extra = {
+      'https://investorx.com/': { html: true, text: html(`<h1>Investor X domain is for sale</h1>${filler}`) },
+      'https://investorx.ai/': { html: true, text: html(`<h1>Investor X</h1><p>San Francisco</p>${filler}`) },
+      'https://investorx.io/': { html: true, text: html(`<h1>Investor X</h1><p>Based in Utrecht</p>${filler}`) },
+    };
+    const calls = [];
+    const http = fakeHttp(calls);
+    const getText = http.getText;
+    http.getText = async (url) => (extra[url] ? { ok: true, status: 200, url, ...extra[url] } : getText(url));
+    const llm = fakeLlm([]);
+    const judge = llm.json;
+    llm.json = async (args) => {
+      if (args.name !== 'candidates' && /Company: Investor X/.test(args.user)) {
+        return { ...VERDICTS['Acme AI'], city: 'Utrecht', whatTheyDo: 'Greenhouse vision' };
+      }
+      return judge(args);
+    };
+    await runStartupSearch({ root, http, llm, tavilyKey: 't', clock });
+
+    const byName = Object.fromEntries(listStartups(root).companies.map((c) => [c.name, c]));
+    expect(byName['Investor X'].website).toBe('https://investorx.io/');
+    expect(calls).not.toContain('POST Investor X Netherlands official website');
+  });
+
+  it('retries a company whose website was not found after a week, not after the full recheck period', async () => {
+    await runStartupSearch({ root, http: fakeHttp([]), llm: fakeLlm([]), tavilyKey: 't', clock });
+    const later = (days) => createFixedClock(new Date(Date.parse('2026-11-27T12:00:00.000Z') + days * 86400000));
+    const soon = await runStartupSearch({ root, http: fakeHttp([]), llm: fakeLlm([]), tavilyKey: 't', clock: later(3) });
+    expect(soon.candidates).toBe(0);
+    const week = await runStartupSearch({ root, http: fakeHttp([]), llm: fakeLlm([]), tavilyKey: 't', clock: later(8) });
+    expect(week.candidates).toBe(1); // Investor X only; rejected and unreachable ones wait the full period
+  });
+
+  it('trusts the YC directory for location when the company site does not say', async () => {
+    const llm = fakeLlm([]);
+    const judge = llm.json;
+    llm.json = async (args) => {
+      const out = await judge(args);
+      return args.name === 'candidates' ? out : { ...out, netherlands: 'unknown', city: '' };
+    };
+    await runStartupSearch({ root, http: fakeHttp([]), llm, tavilyKey: 't', clock });
+    const store = JSON.parse(fs.readFileSync(path.join(root, 'data', 'startups.json'), 'utf8'));
+    const byName = Object.fromEntries(store.companies.map((c) => [c.name, c]));
+    expect(byName['Acme AI']).toMatchObject({ verdict: 'keep', city: 'Amsterdam' }); // from YC
+    expect(byName['Gamma Corp'].rejectReason).toBe('no Netherlands location shown on its website'); // search only
+  });
+
   it('dismisses a startup', async () => {
     await runStartupSearch({ root, http: fakeHttp([]), llm: fakeLlm([]), tavilyKey: 't', clock });
     setStartupStatus(root, { id: 'acme.ai', status: 'dismissed' });
@@ -252,6 +307,59 @@ describe('Startups: run', () => {
   });
 
   it('explains when no AI model is configured', async () => {
-    await expect(runStartupSearch({ root, http: fakeHttp([]), llm: null, tavilyKey: 't', clock })).rejects.toThrow(/GROK_API_KEY/);
+    await expect(runStartupSearch({ root, http: fakeHttp([]), llm: null, tavilyKey: 't', clock })).rejects.toThrow(/OPENAI_API_KEY/);
+  });
+});
+
+describe('Startups: Supabase store', () => {
+  /** @type {string} */
+  let root;
+  const clock = createFixedClock(new Date('2026-11-27T12:00:00.000Z'));
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'aroha-startups-db-'));
+    fs.writeFileSync(path.join(root, 'scan.json'), JSON.stringify({ companies: [], startups: { searches: [{ query: 'dutch ai startups' }] } }));
+  });
+  afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+  it('imports the existing file list once, then never looks those companies up again', async () => {
+    await runStartupSearch({ root, http: fakeHttp([]), llm: fakeLlm([]), tavilyKey: 't', clock }); // fills startups.json
+    const client = createFakeSupabaseClient();
+    const startups = createStartups({
+      root,
+      repo: createSupabaseStartupsRepo(client, { seed: createFileStartupsRepo(root) }),
+      http: fakeHttp([]),
+      llm: fakeLlm([]),
+      tavilyKey: 't',
+      clock,
+    });
+
+    const listed = await startups.list();
+    expect(listed.companies.map((c) => c.name)).toEqual(['Acme AI']);
+    expect(listed.lastRun.ranAt).toBe('2026-11-27T12:00:00.000Z');
+    expect(client._tables.agent_startups).toHaveLength(4); // kept, rejected and unreachable all remembered
+
+    fs.rmSync(path.join(root, 'data'), { recursive: true }); // the database alone now holds the list
+    const summary = await startups.refresh();
+    expect(summary).toMatchObject({ candidates: 0, checked: 0 });
+
+    await startups.setStatus({ id: 'acme.ai', status: 'dismissed' });
+    expect((await startups.list()).companies[0].status).toBe('dismissed');
+    expect(client._tables.agent_startups.find((r) => r.domain === 'acme.ai').status).toBe('dismissed');
+    await expect(startups.setStatus({ id: 'acme.ai', status: 'bogus' })).rejects.toThrow(/Unknown startup status/);
+  });
+
+  it('points to the SQL file when the table is missing', async () => {
+    const client = { from: () => { const b = { select: () => b, order: () => b, range: async () => ({ data: null, error: { message: "Could not find the table 'public.agent_startups' in the schema cache" } }) }; return b; } };
+    await expect(createSupabaseStartupsRepo(client).load()).rejects.toThrow(/startups-store\.sql/);
+  });
+});
+
+describe('Startups: AI model choice', () => {
+  it('uses OpenAI with a default model when only OPENAI_API_KEY is set', () => {
+    expect(createJsonLlmFromEnv({ OPENAI_API_KEY: 'k' }).model).toBe('gpt-4.1-mini');
+    expect(createJsonLlmFromEnv({ OPENAI_API_KEY: 'k', GROK_API_KEY: 'g' }).model).toBe('gpt-4.1-mini');
+    expect(createJsonLlmFromEnv({ GROK_API_KEY: 'g' }).model).toBe('grok-4.7');
+    expect(createJsonLlmFromEnv({})).toBeNull();
   });
 });

@@ -61,7 +61,8 @@ export function createJsonLlm({ baseUrl, apiKey, model, fetchImpl = globalThis.f
  * @returns {ReturnType<typeof createJsonLlm> | null}
  */
 export function createJsonLlmFromEnv(env, fetchImpl) {
-  const provider = (env.STARTUPS_LLM_PROVIDER || (env.GROK_API_KEY ? 'grok' : 'openai')).toLowerCase();
+  // OpenAI when its key is set (or asked for), else Grok when its key is set.
+  const provider = (env.STARTUPS_LLM_PROVIDER || (env.OPENAI_API_KEY || !env.GROK_API_KEY ? 'openai' : 'grok')).toLowerCase();
   if (provider === 'grok') {
     if (!env.GROK_API_KEY) return null;
     return createJsonLlm({
@@ -72,11 +73,11 @@ export function createJsonLlmFromEnv(env, fetchImpl) {
     });
   }
   if (provider === 'openai') {
-    if (!env.OPENAI_API_KEY || !env.OPENAI_MODEL) return null;
+    if (!env.OPENAI_API_KEY) return null;
     return createJsonLlm({
       baseUrl: 'https://api.openai.com/v1',
       apiKey: env.OPENAI_API_KEY,
-      model: env.OPENAI_MODEL,
+      model: env.OPENAI_MODEL || 'gpt-4.1-mini',
       fetchImpl,
     });
   }

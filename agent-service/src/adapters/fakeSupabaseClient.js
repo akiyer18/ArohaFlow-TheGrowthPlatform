@@ -1,6 +1,6 @@
 /**
  * In-memory Supabase-shaped client for Store adapter tests (no live credentials).
- * Supports the chain subset createSupabaseStore uses: from → select/upsert/insert/update/delete → eq/order/limit/maybeSingle.
+ * Supports the chain subset createSupabaseStore uses: from → select/upsert/insert/update/delete → eq/order/limit/range/maybeSingle.
  */
 export function createFakeSupabaseClient() {
   /** @type {Record<string, object[]>} */
@@ -21,6 +21,8 @@ export function createFakeSupabaseClient() {
     let orderCol = null;
     let orderAsc = true;
     let limitN = null;
+    let rangeFrom = null;
+    let rangeTo = null;
     let pendingWrite = null;
 
     const builder = {
@@ -54,6 +56,11 @@ export function createFakeSupabaseClient() {
       },
       limit(n) {
         limitN = n;
+        return builder;
+      },
+      range(from, to) {
+        rangeFrom = from;
+        rangeTo = to;
         return builder;
       },
       async maybeSingle() {
@@ -120,6 +127,7 @@ export function createFakeSupabaseClient() {
           return orderAsc ? (av < bv ? -1 : 1) : av < bv ? 1 : -1;
         });
       }
+      if (rangeFrom != null) result = result.slice(rangeFrom, rangeTo + 1);
       if (limitN != null) result = result.slice(0, limitN);
       return { data: result, error: null };
     }

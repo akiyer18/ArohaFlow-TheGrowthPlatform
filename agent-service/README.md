@@ -76,9 +76,9 @@ career-data/
 
 ## Startups list (ADR-0014)
 
-**Find startups** in Applications → Startups (`POST /startups/refresh`) proposes small Dutch AI companies from the YC directory and Tavily search, verifies each on its own website, and keeps those that pass the gate. Results: `career-data/data/startups.json`; settings: `scan.json` → `startups` (searches, targetRoles, minFit, maxNewPerRun, recheckAfterDays).
+**Find startups** in Applications → Startups (`POST /startups/refresh`) proposes small Dutch AI companies from the YC directory and Tavily search, verifies each on its own website, and keeps those that pass the gate. Results: Supabase `agent_startups` when the Agent Service has Supabase env (run `database/startups-store.sql` once; the first load imports `career-data/data/startups.json`), else that file; settings: `scan.json` → `startups` (searches, targetRoles, minFit, maxNewPerRun, recheckAfterDays).
 
-Env (`.env` or `.env.agent`): `TAVILY_KEY`, and `GROK_API_KEY` (optional `GROK_MODEL`, default `grok-4.7`). To use OpenAI instead: `STARTUPS_LLM_PROVIDER=openai`, `OPENAI_API_KEY`, `OPENAI_MODEL`.
+Env (`.env` or `.env.agent`, never the database): `TAVILY_KEY` and `OPENAI_API_KEY` (optional `OPENAI_MODEL`, default `gpt-4.1-mini`). Grok is used instead when only `GROK_API_KEY` is set (optional `GROK_MODEL`, default `grok-4.7`), or when `STARTUPS_LLM_PROVIDER=grok`.
 
 ## MCP
 

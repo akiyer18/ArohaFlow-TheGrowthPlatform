@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { mapLimit } from '../discovery/scanJobs.js';
 import { extractCandidates, gateVerdict, judgeCompany } from './judge.js';
-import { readCompanySite, siteDomain } from './site.js';
-import { fetchYcNetherlands, isCompanySiteCandidate, tavilySearch } from './sources.js';
+import { htmlToText, readCompanySite, robotsAllows, siteDomain } from './site.js';
+import { NOT_A_COMPANY_SITE, fetchYcNetherlands, isCompanySiteCandidate, tavilySearch } from './sources.js';
 
 const CONCURRENCY = 4;
 
@@ -43,6 +43,40 @@ export function domainMatchesName(domain, name) {
   if (label.includes(compact) || compact.includes(label)) return true;
   const firstWord = nameKey(String(name).split(/\s+/)[0]);
   return firstWord.length >= 4 && label.includes(firstWord);
+}
+
+const GUESS_TLDS = ['com', 'ai', 'io', 'nl', 'co'];
+const NL_TEXT_RE = /netherlands|nederland|dutch|amsterdam|rotterdam|utrecht|eindhoven|delft|den haag|the hague|groningen|leiden|nijmegen|enschede|tilburg|haarlem/i;
+const PARKED_RE = /domain (is |may be )?for sale|buy this domain|this domain is parked|parked free|hugedomains|sedo\.com|dan\.com/i;
+
+/**
+ * Try the obvious domains (name.com, name.ai, …) before spending a web search. A guess counts only when
+ * robots.txt allows it, the homepage names the company, it is not a parked domain, and it shows a Dutch link
+ * (a .nl domain or a Dutch place on the page), so a same-named company elsewhere is not picked up.
+ */
+async function guessWebsite(http, name) {
+  const labels = [...new Set([nameKey(name), nameKey(String(name).split(/\s+/)[0])])].filter((l) => /^[a-z0-9]{4,}$/.test(l));
+  const hosts = labels.flatMap((label) => GUESS_TLDS.map((tld) => `${label}.${tld}`));
+  const hits = await Promise.all(
+    hosts.map(async (host) => {
+      try {
+        const robots = await http.getText(`https://${host}/robots.txt`);
+        if (robots.ok && !robots.html && !robotsAllows(robots.text, '/')) return null;
+        const res = await http.getText(`https://${host}/`);
+        if (!res.ok || !res.html) return null;
+        const finalUrl = res.url || `https://${host}/`;
+        const domain = siteDomain(finalUrl);
+        const text = htmlToText(res.text);
+        if (!domain || !domainMatchesName(domain, name) || text.length < 300 || PARKED_RE.test(text)) return null;
+        if (!nameKey(text.slice(0, 6000)).includes(nameKey(name))) return null;
+        if (!domain.endsWith('.nl') && !NL_TEXT_RE.test(text)) return null;
+        return `${new URL(finalUrl).origin}/`;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return hits.find(Boolean) ?? '';
 }
 
 function daysBetween(fromKey, toKey) {
@@ -109,13 +143,41 @@ function addBoardsToScan(root, boards) {
  *   clock: { todayDateKey(): string, now(): Date },
  * }} deps
  */
-export async function runStartupSearch({ root, http, llm, tavilyKey, clock }) {
+/**
+ * File repository over career-data/data/startups.json, used when Supabase is not configured and as
+ * the one-time seed for the Supabase repository.
+ */
+export function createFileStartupsRepo(root) {
+  return {
+    async load() {
+      return root ? readStartupsStore(root) : { updatedAt: null, lastRun: null, companies: [] };
+    },
+    async save({ companies, lastRun }) {
+      const store = readStartupsStore(root);
+      const keys = new Set(companies.map((c) => nameKey(c.name)));
+      const rest = store.companies.filter((c) => !keys.has(nameKey(c.name)));
+      writeStartupsStore(root, { updatedAt: lastRun?.ranAt ?? store.updatedAt, lastRun: lastRun ?? store.lastRun, companies: [...rest, ...companies] });
+    },
+    async setStatus(id, status) {
+      return setStartupStatus(root, { id, status });
+    },
+  };
+}
+
+/** Kept companies, best fit first. */
+function keptCompanies(companies) {
+  return companies
+    .filter((c) => c.verdict === 'keep')
+    .sort((a, b) => (b.fit ?? 0) - (a.fit ?? 0) || String(b.foundAt).localeCompare(String(a.foundAt)));
+}
+
+export async function runStartupSearch({ root, repo = createFileStartupsRepo(root), http, llm, tavilyKey, clock }) {
   if (!llm) {
-    throw new Error('No AI model configured: set GROK_API_KEY (or STARTUPS_LLM_PROVIDER=openai with OPENAI_API_KEY and OPENAI_MODEL).');
+    throw new Error('No AI model configured: set OPENAI_API_KEY in .env (or GROK_API_KEY).');
   }
   const config = readStartupsConfig(root);
   const today = clock.todayDateKey();
-  const store = readStartupsStore(root);
+  const store = await repo.load();
   const notes = [];
   const failed = [];
   let searchesRun = 0;
@@ -124,7 +186,9 @@ export async function runStartupSearch({ root, http, llm, tavilyKey, clock }) {
   // Known companies: kept ones forever, rejected ones until recheckAfterDays.
   const known = new Map();
   for (const c of store.companies) {
-    const stale = c.verdict !== 'keep' && daysBetween(c.checkedAt ?? today, today) >= config.recheckAfterDays;
+    // A missing website is often our lookup failing, not the company, so it is retried after a week.
+    const recheckDays = c.rejectReason === 'website not found' ? 7 : config.recheckAfterDays;
+    const stale = c.verdict !== 'keep' && daysBetween(c.checkedAt ?? today, today) >= recheckDays;
     if (stale) continue;
     known.set(`name:${nameKey(c.name)}`, c);
     if (c.domain) known.set(`domain:${c.domain}`, c);
@@ -194,14 +258,15 @@ export async function runStartupSearch({ root, http, llm, tavilyKey, clock }) {
       checkedAt: today,
     };
 
-    let website = cand.website;
+    let website = cand.website || (await guessWebsite(http, cand.name));
     if (!website && tavilyKey) {
       try {
         resolveSearches += 1;
         const hits = await tavilySearch(http, tavilyKey, {
-          query: `${cand.name} ${cand.city || 'Netherlands'} AI company official website`,
+          query: `${cand.name} ${cand.city || 'Netherlands'} official website`,
           depth: 'basic',
-          maxResults: 5,
+          maxResults: 10,
+          excludeDomains: NOT_A_COMPANY_SITE,
           rawContent: false,
         });
         website = hits.find((h) => isCompanySiteCandidate(h.url) && domainMatchesName(siteDomain(h.url), cand.name))?.url ?? '';
@@ -237,6 +302,10 @@ export async function runStartupSearch({ root, http, llm, tavilyKey, clock }) {
       failed.push(`Judging ${cand.name} (${err.message})`);
       return; // retry next run
     }
+    // The YC directory's location field is structured data; it settles location when the site is silent.
+    if (v.netherlands === 'unknown' && cand.sources.some((s) => s.type === 'yc')) {
+      v = { ...v, netherlands: 'office', city: v.city || cand.city };
+    }
     const gate = gateVerdict(v, { minFit: config.minFit });
     if (gate.keep && site.atsBoard) boards.push({ name: cand.name, ...site.atsBoard });
     checked.push({
@@ -263,9 +332,7 @@ export async function runStartupSearch({ root, http, llm, tavilyKey, clock }) {
     throw err;
   });
 
-  /* 3. Store: replace stale entries for re-checked companies, keep everything else */
-  const checkedKeys = new Set(checked.map((c) => nameKey(c.name)));
-  const kept = store.companies.filter((c) => !checkedKeys.has(nameKey(c.name)));
+  /* 3. Store: checked companies replace any stale entry of the same name; everything else stays */
   const boardsAdded = addBoardsToScan(root, boards);
   const summary = {
     ranAt: clock.now().toISOString(),
@@ -281,16 +348,13 @@ export async function runStartupSearch({ root, http, llm, tavilyKey, clock }) {
     failed,
     notes,
   };
-  writeStartupsStore(root, { updatedAt: summary.ranAt, lastRun: summary, companies: [...kept, ...checked] });
+  await repo.save({ companies: checked, lastRun: summary });
   return summary;
 }
 
 export function listStartups(root) {
   const store = readStartupsStore(root);
-  const companies = store.companies
-    .filter((c) => c.verdict === 'keep')
-    .sort((a, b) => (b.fit ?? 0) - (a.fit ?? 0) || String(b.foundAt).localeCompare(String(a.foundAt)));
-  return { updatedAt: store.updatedAt, lastRun: store.lastRun, companies };
+  return { updatedAt: store.updatedAt, lastRun: store.lastRun, companies: keptCompanies(store.companies) };
 }
 
 export function setStartupStatus(root, { id, status }) {
@@ -304,24 +368,23 @@ export function setStartupStatus(root, { id, status }) {
 }
 
 /**
- * Startups port over a career-data root. Without a root, list is empty and refresh explains why.
- * @param {{ root: string | null, http: object, llm: object | null, tavilyKey?: string, clock: object }} deps
+ * Startups port. `repo` holds the list (Supabase or the career-data file); `root` (career-data) is
+ * needed only to search, for the settings in scan.json and to hand job boards to the scanner.
+ * @param {{ root: string | null, repo?: object, http: object, llm: object | null, tavilyKey?: string, clock: object }} deps
  */
-export function createFileStartups({ root, http, llm, tavilyKey, clock }) {
-  const needRoot = () => {
-    if (!root) throw new Error('Add a career-data/ folder (or set CAREER_OPS_ROOT) to keep a Startups list.');
-  };
+export function createStartups({ root, repo = createFileStartupsRepo(root), http, llm, tavilyKey, clock }) {
   return {
     async refresh() {
-      needRoot();
-      return runStartupSearch({ root, http, llm, tavilyKey, clock });
+      if (!root) throw new Error('Add a career-data/ folder (or set CAREER_OPS_ROOT) to search for startups.');
+      return runStartupSearch({ root, repo, http, llm, tavilyKey, clock });
     },
     async list() {
-      return root ? listStartups(root) : { updatedAt: null, lastRun: null, companies: [] };
+      const store = await repo.load();
+      return { updatedAt: store.lastRun?.ranAt ?? null, lastRun: store.lastRun ?? null, companies: keptCompanies(store.companies) };
     },
-    async setStatus(input) {
-      needRoot();
-      return setStartupStatus(root, input ?? {});
+    async setStatus({ id, status } = {}) {
+      if (!['new', 'dismissed', 'saved'].includes(status)) throw new Error(`Unknown startup status: ${status}`);
+      return repo.setStatus(id, status);
     },
   };
 }
