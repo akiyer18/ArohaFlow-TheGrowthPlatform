@@ -42,6 +42,10 @@ Habits and Habit Check-ins live in `agent_habits` and `agent_habit_checkins` (AD
 
 Run **`database/applications-store.sql`** once (ADR-0012). It replaces the empty draft `agent_applications` table if present, creates `agent_applications` and `agent_application_events` with RLS, and is safe to re-run. Verify with `npm run applications:live`.
 
+## Startups (Agent Store)
+
+Run **`database/startups-store.sql`** once (ADR-0014). It creates `agent_startups` (every company the Startups search has checked) and `agent_startup_runs`, agent-only with RLS on and no policies, and is safe to re-run. On its next start the Agent Service imports any existing `career-data/data/startups.json` into the empty table.
+
 ## Effective user in dev
 
 - **Local:** `config/appConfig.js` exports **DEV_USER_ID**. When `VITE_DATA_SOURCE=local`, `LocalService` uses this id for the session and all scoped queries, so one dataset is shared for every “login”.

@@ -5,9 +5,14 @@ import { createFakeGmail } from './adapters/fakeGmail.js';
 import { createFakeLlm } from './adapters/fakeLlm.js';
 import { createFakeCalendarRead } from './adapters/fakeCalendarRead.js';
 import { createFakeCalendarWrite } from './adapters/fakeCalendarWrite.js';
-import { createStoreFromEnv } from './createStore.js';
+import { createStoreFromEnv, createSupabaseClientFromEnv } from './createStore.js';
 import { createGooglePortsFromEnv } from './createGooglePorts.js';
 import { createFakeCareerOps } from './adapters/fakeCareerOps.js';
+import { createJsonLlmFromEnv } from './adapters/openAiCompatibleLlm.js';
+import { createFileStartupsRepo, createStartups } from './startups/findStartups.js';
+import { createSupabaseStartupsRepo } from './startups/supabaseStartups.js';
+import { createHttpJson } from './startups/sources.js';
+import { createHttpText } from './startups/site.js';
 import {
   createFileCareerOps,
   resolveCareerOpsRoot,
@@ -143,7 +148,22 @@ export function createLocalAgent(options = {}) {
     calendarRead,
     calendarWrite,
     careerOps,
+    startups: options.startups ?? createStartupsPort({ env, clock, root: careerOpsRoot ?? resolveCareerOpsRoot(env) }),
   });
 
   return { agent, clock, store, googleKind: google.kind, careerOpsRoot };
+}
+
+/** Startups list in Supabase when the Agent Service has it (seeded once from career-data), else in career-data. */
+function createStartupsPort({ env, clock, root }) {
+  const client = createSupabaseClientFromEnv(env);
+  const fileRepo = createFileStartupsRepo(root);
+  return createStartups({
+    root,
+    repo: client ? createSupabaseStartupsRepo(client, { seed: root ? fileRepo : null }) : fileRepo,
+    http: { ...createHttpJson(), ...createHttpText() },
+    llm: createJsonLlmFromEnv(env),
+    tavilyKey: env.TAVILY_KEY || env.TAVILY_API_KEY,
+    clock,
+  });
 }

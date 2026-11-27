@@ -11,6 +11,7 @@ import {
   stageLabel,
 } from '../modules/applications';
 import DiscoveryPanel from './DiscoveryPanel';
+import StartupsPanel from './StartupsPanel';
 import './applications.css';
 
 /* ---------- Formatting ---------- */
@@ -347,6 +348,7 @@ export default function ApplicationsPage() {
             {[
               ['board', 'Board'],
               ['discovery', 'Discovery'],
+              ['startups', 'Startups'],
             ].map(([id, label]) => (
               <button
                 key={id}
@@ -376,6 +378,8 @@ export default function ApplicationsPage() {
 
       {section === 'discovery' ? (
         <DiscoveryPanel boardUrls={boardUrls} onSave={onCreate} />
+      ) : section === 'startups' ? (
+        <StartupsPanel boardUrls={boardUrls} onSave={onCreate} />
       ) : (
       <>
       {adding ? <AddApplicationForm onSave={onCreate} onCancel={() => setAdding(false)} /> : null}

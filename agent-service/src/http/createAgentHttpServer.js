@@ -113,6 +113,15 @@ export async function createAgentHttpServer(options) {
     if (method === 'GET' && pathname === '/applications') {
       return agent.listApplications();
     }
+    if (method === 'GET' && pathname === '/startups') {
+      return agent.listStartups();
+    }
+    if (method === 'POST' && pathname === '/startups/refresh') {
+      return agent.findStartups();
+    }
+    if (method === 'POST' && pathname === '/startups/status') {
+      return agent.setStartupStatus(body ?? {});
+    }
     if (method === 'POST' && pathname === '/discovery/refresh') {
       return agent.refreshDiscovery();
     }
@@ -186,6 +195,8 @@ export async function createAgentHttpServer(options) {
   });
 
   await new Promise((resolve, reject) => {
+    // Finding startups reads dozens of websites and can take several minutes.
+    server.requestTimeout = 15 * 60_000;
     server.once('error', reject);
     server.listen(port, host, resolve);
   });

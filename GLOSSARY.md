@@ -128,6 +128,10 @@ _Avoid_: job (too vague), opportunity (ambiguous)
 The Applications OS section (and Agent Service tools) that surfaces job listings scanned from company boards and job sites (ADR-0013) — listings with scores, recency (posted or discovered), and liveness (open, expired, uncertain) — before the user explicitly promotes one onto the Applications board as Saved. Not auto-merged into the board; never submits to an ATS.
 _Avoid_: inbox (career-ops file name), scrape results
 
+**Startup** (Applications):
+A small AI company in the Netherlands kept on the Startups list for an open application, after its own website confirmed it (ADR-0014): AI is core, Dutch HQ or office, 200 people or fewer, fit 3–5 with a reason. Saving one puts it on the Applications board as Saved, role "Open application".
+_Avoid_: lead, prospect, target account
+
 **Job Profile**:
 A career-ops search archetype (target titles, locations, exclusions, attached CV) used when running Discovery. Kept as local config in `career-data/` (profile.yml, cv.md); ArohaFlow does not invent a second profile store in v1.
 _Avoid_: persona, resume template
